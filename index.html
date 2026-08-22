@@ -2,59 +2,85 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Scanner Panitia Acara</title>
   
-  <!-- Library QR Code Murni (Tanpa UI Bawaan) -->
+  <!-- Library QR Code -->
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <!-- Library Icon Lucide untuk icon sukses/gagal yang cantik -->
+  <!-- Library Icon Lucide -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <style>
     /* RESET & DASAR */
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
-    body { background-color: #000; overflow: hidden; color: white; }
+    
+    /* Mengunci layar agar tidak bisa di-scroll (Penting untuk iPhone) */
+    html, body { 
+      width: 100%; height: 100%; 
+      background-color: #000; 
+      overflow: hidden; 
+      position: fixed; 
+      color: white; 
+    }
 
-    /* AREA KAMERA FULL SCREEN */
+    /* =========================================
+       AREA KAMERA FULL SCREEN (PERBAIKAN UTAMA)
+       ========================================= */
     #reader {
       position: absolute;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      object-fit: cover;
+      top: 0; left: 0; 
+      width: 100%; height: 100%;
       z-index: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
     
-    /* OVERLAY GELAP (Agar fokus ke tengah) */
-    .overlay {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.4); z-index: 2;
+    /* Memaksa video menutupi layar tanpa mengubah proporsi wajah/gambar */
+    #reader video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important; 
+    }
+
+    /* Membunuh UI bawaan dari library agar tidak dobel! */
+    #qr-shaded-region, #reader canvas {
+      display: none !important;
+    }
+
+    /* KOTAK SCANNER & SIKU-SIKU (UI CUSTOM KITA) */
+    .scan-area {
+      position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
+      width: 260px; height: 260px;
+      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.6); /* Efek gelap di luar kotak */
+      border-radius: 15px; z-index: 3;
+      pointer-events: none; /* Agar sentuhan tembus ke layar kamera */
+    }
+    .corner { position: absolute; width: 40px; height: 40px; border-color: #fff; border-style: solid; }
+    .tl { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-top-left-radius: 15px; }
+    .tr { top: -2px; right: -2px; border-width: 4px 4px 0 0; border-top-right-radius: 15px; }
+    .bl { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; border-bottom-left-radius: 15px; }
+    .br { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-bottom-right-radius: 15px; }
+    
+    /* TEKS INSTRUKSI */
+    .instruction { 
+      position: absolute; top: calc(45% + 160px); left: 50%; transform: translateX(-50%); 
+      text-align: center; font-size: 15px; letter-spacing: 0.5px; z-index: 3; width: 100%; 
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
       pointer-events: none;
     }
 
-    /* KOTAK SCANNER & SIKU-SIKU (Brackets) */
-    .scan-area {
-      position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
-      width: 250px; height: 250px;
-      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.5); /* Efek gelap di luar kotak */
-      border-radius: 10px; z-index: 3;
-    }
-    .corner { position: absolute; width: 40px; height: 40px; border-color: #fff; border-style: solid; }
-    .tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-top-left-radius: 10px; }
-    .tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-top-right-radius: 10px; }
-    .bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-bottom-left-radius: 10px; }
-    .br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-bottom-right-radius: 10px; }
-    
-    /* TEKS INSTRUKSI */
-    .instruction { position: absolute; top: calc(40% + 160px); left: 50%; transform: translateX(-50%); text-align: center; font-size: 14px; letter-spacing: 0.5px; z-index: 3; width: 100%; }
-
     /* TOMBOL HAMBURGER (MENU KIRI ATAS) */
     .menu-btn {
-      position: absolute; top: 20px; left: 20px; z-index: 10;
-      background: transparent; border: none; color: white; cursor: pointer; padding: 10px;
+      position: absolute; top: 25px; left: 20px; z-index: 10;
+      background: rgba(0,0,0,0.5); border: none; color: white; 
+      cursor: pointer; padding: 10px; border-radius: 8px;
+      backdrop-filter: blur(5px);
     }
 
     /* SIDEBAR (MENU TERSEMBUNYI) */
     .sidebar {
-      position: absolute; top: 0; left: -100%; width: 280px; height: 100vh;
+      position: absolute; top: 0; left: -100%; width: 280px; height: 100%;
       background: #111827; z-index: 20; transition: 0.3s ease-in-out;
       padding: 30px 20px; box-shadow: 5px 0 15px rgba(0,0,0,0.5);
     }
@@ -71,27 +97,23 @@
       width: 90%; max-width: 400px; background: white; border-radius: 16px;
       padding: 20px; z-index: 30; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       color: #1f2937; display: flex; gap: 15px; align-items: flex-start;
-      box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
+      box-shadow: 0 -10px 40px rgba(0,0,0,0.4);
     }
     .bottom-sheet.show { bottom: 30px; }
     
-    /* Varian Warna Border Bawah Pop-up */
     .bottom-sheet.sukses { border-bottom: 5px solid #22c55e; }
     .bottom-sheet.gagal { border-bottom: 5px solid #ef4444; }
     .bottom-sheet.peringatan { border-bottom: 5px solid #f59e0b; }
 
-    /* Icon Bulat di Pop-up */
     .icon-circle { width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
     .sukses .icon-circle { background: #22c55e; color: white; }
     .gagal .icon-circle { background: #ef4444; color: white; }
     .peringatan .icon-circle { background: #f59e0b; color: white; }
 
-    /* Teks Pop-up */
     .sheet-content { flex: 1; }
     .sheet-content h4 { font-size: 18px; margin-bottom: 4px; }
     .sheet-content p { font-size: 13px; color: #4b5563; line-height: 1.4; }
     
-    /* Tombol Close Pop-up (X) */
     .close-sheet { background: none; border: none; color: #9ca3af; cursor: pointer; padding: 5px; }
   </style>
 </head>
@@ -99,13 +121,13 @@
 
   <!-- TOMBOL MENU HAMBURGER -->
   <button class="menu-btn" onclick="toggleMenu()">
-    <i data-lucide="menu" style="width: 30px; height: 30px;"></i>
+    <i data-lucide="menu" style="width: 24px; height: 24px;"></i>
   </button>
 
   <!-- BACKGROUND KAMERA -->
   <div id="reader"></div>
 
-  <!-- UI SCANNER (KOTAK & TEKS) -->
+  <!-- UI SCANNER KITA -->
   <div class="scan-area">
     <div class="corner tl"></div>
     <div class="corner tr"></div>
@@ -114,23 +136,19 @@
   </div>
   <p class="instruction">Arahkan kamera ke QR code tiket</p>
 
-  <!-- SIDEBAR MENU (TERSEMBUNYI) -->
+  <!-- SIDEBAR MENU -->
   <div id="sidebar" class="sidebar">
     <h3>Pengaturan Panitia</h3>
-    
     <label>Input Manual (Jika Kamera Rusak)</label>
     <input type="text" id="manualId" placeholder="TIKET-X-XXXX">
     <button onclick="kirimManual()">Proses Tiket</button>
-    
     <hr style="border-color: #374151; margin: 20px 0;">
-    
     <label>Kamera</label>
-    <button onclick="gantiKamera()" style="background: #4b5563;">🔄 Ganti Kamera Depan/Belakang</button>
-    
+    <button onclick="gantiKamera()" style="background: #4b5563;">🔄 Ganti Kamera</button>
     <button class="close-menu" onclick="toggleMenu()">Tutup Menu</button>
   </div>
 
-  <!-- POP-UP HASIL SCAN (BOTTOM SHEET) -->
+  <!-- POP-UP HASIL SCAN -->
   <div id="resultSheet" class="bottom-sheet">
     <div id="sheetIcon" class="icon-circle"></div>
     <div class="sheet-content">
@@ -142,13 +160,13 @@
     </button>
   </div>
 
+
   <!-- SCRIPT LOGIKA PROGRAM -->
   <script>
-    // Inisialisasi Icon
     lucide.createIcons();
 
     // =========================================================
-    // 1. MASUKKAN URL APPS SCRIPT ANDA DI ANTARA TANDA KUTIP DI BAWAH INI:
+    // MASUKKAN URL APPS SCRIPT ANDA DI ANTARA TANDA KUTIP BAWAH INI:
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbymk3Iq0_keHaOUJnmQ7OSURmLoOQ2tWboWQ2UODFQy5oxCPeZIwuQkSEo-7y7Cgwr2/exec";
     // =========================================================
 
@@ -168,7 +186,6 @@
       }
     }
 
-    // Mengaktifkan izin audio saat panitia pertama kali menyentuh layar
     document.body.addEventListener('touchstart', initAudio, { once: true });
     document.body.addEventListener('click', initAudio, { once: true });
 
@@ -216,7 +233,8 @@
       const cameraFacing = isFrontCamera ? "user" : "environment";
       html5QrCode.start(
         { facingMode: cameraFacing },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        // Perbaikan Utama: Hapus config qrbox agar library tidak membuat UI double
+        { fps: 10 }, 
         (decodedText) => {
           if (isScanning) {
             isScanning = false;
