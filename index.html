@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scanner Panitia Acara</title>
+  <!-- Library Scanner QR Code -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #fff; margin:0; padding:20px; text-align:center; }
+    h2 { color: #3498db; }
+    /* Area Kamera */
+    #reader { width: 100%; max-width: 400px; margin: auto; border-radius: 12px; overflow: hidden; border: 3px solid #333; background: #000; }
+    /* Kotak Hasil */
+    .status-box { margin-top: 20px; padding: 20px; border-radius: 10px; font-weight: bold; font-size: 18px; display: none; transition: 0.3s; }
+    .sukses { background: #27ae60; color: white; border: 2px solid #2ecc71; box-shadow: 0 0 15px #27ae60; }
+    .peringatan { background: #f39c12; color: white; border: 2px solid #f1c40f; }
+    .gagal { background: #c0392b; color: white; border: 2px solid #e74c3c; box-shadow: 0 0 15px #c0392b; }
+    /* Input Manual */
+    .manual-input { margin-top: 30px; padding-top: 20px; border-top: 1px solid #333; }
+    input { padding: 12px; border-radius: 6px; border: none; font-size: 16px; width: 60%; max-width: 200px; text-align: center; }
+    button { padding: 12px 20px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #2980b9; }
+  </style>
+</head>
+<body>
+
+  <h2>📷 Scanner Pintu Masuk</h2>
+  <p>Arahkan QR Code Tiket ke kamera</p>
+
+  <div id="reader"></div>
+  
+  <div id="resultBox" class="status-box">Menunggu hasil...</div>
+
+  <div class="manual-input">
+    <p style="color:#aaa; font-size:14px;">Kamera rusak? Input manual ID tiket:</p>
+    <input type="text" id="manualId" placeholder="TIKET-...">
+    <button onclick="kirimDataScanner(document.getElementById('manualId').value)">Cek Tiket</button>
+  </div>
+
+  <script>
+    // MASUKKAN URL WEB APP ANDA DI BAWAH INI (Yang didapat dari langkah Deploy Ulang Apps Script)
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbymk3Iq0_keHaOUJnmQ7OSURmLoOQ2tWboWQ2UODFQy5oxCPeZIwuQkSEo-7y7Cgwr2/exec";
+
+    // Inisialisasi Scanner
+    const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, /* verbose= */ false);
+    
+    let isScanning = true;
+
+    function onScanSuccess(decodedText, decodedResult) {
+      if (!isScanning) return; // Mencegah scan berulang
+      isScanning = false;
+      html5QrcodeScanner.pause(); // Jeda kamera sebentar saat memproses
+      kirimDataScanner(decodedText);
+    }
+
+    function kirimDataScanner(idTiket) {
+      if(!idTiket) return;
+      
+      const resultBox = document.getElementById("resultBox");
+      resultBox.className = "status-box";
+      resultBox.style.display = "block";
+      resultBox.style.background = "#333";
+      resultBox.innerText = "⏳ Sedang memvalidasi tiket...";
+
+      // Menembak Data ke Backend (Apps Script)
+      fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Wajib text/plain agar tidak error CORS
+        body: JSON.stringify({ action: "scan", idTiket: idTiket })
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Tampilkan hasil berdasarkan respon dari Apps Script
+        resultBox.innerText = data.pesan;
+        resultBox.className = "status-box " + data.status;
+        
+        // Nyalakan ulang kamera setelah 3 detik untuk tamu selanjutnya
+        setTimeout(() => {
+          resultBox.style.display = "none";
+          isScanning = true;
+          html5QrcodeScanner.resume();
+        }, 3000);
+      })
+      .catch(error => {
+        resultBox.innerText = "Koneksi Error. Pastikan internet menyala.";
+        resultBox.className = "status-box gagal";
+        setTimeout(() => { isScanning = true; html5QrcodeScanner.resume(); }, 3000);
+      });
+    }
+
+    // Mulai jalankan kamera
+    html5QrcodeScanner.render(onScanSuccess);
+  </script>
+</body>
+</html>
