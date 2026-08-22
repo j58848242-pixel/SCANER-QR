@@ -23,9 +23,7 @@
       color: white; 
     }
 
-    /* =========================================
-       AREA KAMERA FULL SCREEN (PERBAIKAN UTAMA)
-       ========================================= */
+    /* AREA KAMERA FULL SCREEN */
     #reader {
       position: absolute;
       top: 0; left: 0; 
@@ -43,18 +41,18 @@
       object-fit: cover !important; 
     }
 
-    /* Membunuh UI bawaan dari library agar tidak dobel! */
+    /* Membunuh UI bawaan dari library agar tidak dobel */
     #qr-shaded-region, #reader canvas {
       display: none !important;
     }
 
-    /* KOTAK SCANNER & SIKU-SIKU (UI CUSTOM KITA) */
+    /* KOTAK SCANNER & SIKU-SIKU */
     .scan-area {
       position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
       width: 260px; height: 260px;
-      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.6); /* Efek gelap di luar kotak */
+      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.6);
       border-radius: 15px; z-index: 3;
-      pointer-events: none; /* Agar sentuhan tembus ke layar kamera */
+      pointer-events: none;
     }
     .corner { position: absolute; width: 40px; height: 40px; border-color: #fff; border-style: solid; }
     .tl { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-top-left-radius: 15px; }
@@ -70,7 +68,7 @@
       pointer-events: none;
     }
 
-    /* TOMBOL HAMBURGER (MENU KIRI ATAS) */
+    /* TOMBOL HAMBURGER */
     .menu-btn {
       position: absolute; top: 25px; left: 20px; z-index: 10;
       background: rgba(0,0,0,0.5); border: none; color: white; 
@@ -155,11 +153,11 @@
       <h4 id="sheetTitle">Berhasil!</h4>
       <p id="sheetDesc">Memproses data...</p>
     </div>
+    <!-- Tombol close manual tetap ada sebagai backup -->
     <button class="close-sheet" onclick="tutupSheet()">
       <i data-lucide="x" style="width: 20px; height: 20px;"></i>
     </button>
   </div>
-
 
   <!-- SCRIPT LOGIKA PROGRAM -->
   <script>
@@ -173,6 +171,7 @@
     let html5QrCode;
     let isScanning = true;
     let isFrontCamera = false;
+    let autoCloseTimer; // Variabel penyimpan detak jantung auto-reset
 
     // --- MESIN SUARA & GETARAN ---
     let audioCtx;
@@ -233,7 +232,6 @@
       const cameraFacing = isFrontCamera ? "user" : "environment";
       html5QrCode.start(
         { facingMode: cameraFacing },
-        // Perbaikan Utama: Hapus config qrbox agar library tidak membuat UI double
         { fps: 10 }, 
         (decodedText) => {
           if (isScanning) {
@@ -291,6 +289,10 @@
       document.getElementById("sheetDesc").innerText = "Menghubungi server...";
       document.getElementById("sheetIcon").innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i>';
       sheet.className = "bottom-sheet show";
+      
+      // Hentikan timer reset jika panitia sedang memindai tiket baru
+      clearTimeout(autoCloseTimer);
+      
       lucide.createIcons();
     }
 
@@ -316,12 +318,23 @@
       
       lucide.createIcons();
       berikanFeedback(status); 
+
+      // FITUR BARU: Auto-Reset Scanner (Jantung)
+      // Pop-up akan otomatis menutup dan scanner kembali hidup dalam 2,5 detik
+      clearTimeout(autoCloseTimer);
+      autoCloseTimer = setTimeout(() => {
+        tutupSheet();
+      }, 2500);
     }
 
     function tutupSheet() {
+      // Hapus timer jika panitia menutup secara manual (X) agar tidak bentrok
+      clearTimeout(autoCloseTimer); 
+      
       document.getElementById("resultSheet").classList.remove("show");
       document.getElementById("manualId").value = "";
       
+      // Jeda setengah detik untuk animasi turun sebelum kamera kembali menyala
       setTimeout(() => {
         if(html5QrCode.getState() === 2) { 
           html5QrCode.resume();
