@@ -14,7 +14,6 @@
     /* RESET & DASAR */
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
     
-    /* Mengunci layar agar tidak bisa di-scroll (Penting untuk iPhone) */
     html, body { 
       width: 100%; height: 100%; 
       background-color: #000; 
@@ -34,14 +33,12 @@
       align-items: center;
     }
     
-    /* Memaksa video menutupi layar tanpa mengubah proporsi wajah/gambar */
     #reader video {
       width: 100% !important;
       height: 100% !important;
       object-fit: cover !important; 
     }
 
-    /* Membunuh UI bawaan dari library agar tidak dobel */
     #qr-shaded-region, #reader canvas {
       display: none !important;
     }
@@ -60,7 +57,6 @@
     .bl { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; border-bottom-left-radius: 15px; }
     .br { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-bottom-right-radius: 15px; }
     
-    /* TEKS INSTRUKSI */
     .instruction { 
       position: absolute; top: calc(45% + 160px); left: 50%; transform: translateX(-50%); 
       text-align: center; font-size: 15px; letter-spacing: 0.5px; z-index: 3; width: 100%; 
@@ -153,7 +149,6 @@
       <h4 id="sheetTitle">Berhasil!</h4>
       <p id="sheetDesc">Memproses data...</p>
     </div>
-    <!-- Tombol close manual tetap ada sebagai backup -->
     <button class="close-sheet" onclick="tutupSheet()">
       <i data-lucide="x" style="width: 20px; height: 20px;"></i>
     </button>
@@ -171,7 +166,7 @@
     let html5QrCode;
     let isScanning = true;
     let isFrontCamera = false;
-    let autoCloseTimer; // Variabel penyimpan detak jantung auto-reset
+    let autoCloseTimer; 
 
     // --- MESIN SUARA & GETARAN ---
     let audioCtx;
@@ -236,7 +231,8 @@
         (decodedText) => {
           if (isScanning) {
             isScanning = false;
-            html5QrCode.pause(); 
+            // PERBAIKAN: Fungsi pause() dihapus total dari sini!
+            // Kamera tetap jalan mulus di background, tapi sistem menolak scan baru berkat variabel isScanning
             prosesDataTiket(decodedText);
           }
         }
@@ -290,9 +286,7 @@
       document.getElementById("sheetIcon").innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i>';
       sheet.className = "bottom-sheet show";
       
-      // Hentikan timer reset jika panitia sedang memindai tiket baru
       clearTimeout(autoCloseTimer);
-      
       lucide.createIcons();
     }
 
@@ -319,8 +313,7 @@
       lucide.createIcons();
       berikanFeedback(status); 
 
-      // FITUR BARU: Auto-Reset Scanner (Jantung)
-      // Pop-up akan otomatis menutup dan scanner kembali hidup dalam 2,5 detik
+      // Timer penutup otomatis (Jantung auto-reset)
       clearTimeout(autoCloseTimer);
       autoCloseTimer = setTimeout(() => {
         tutupSheet();
@@ -328,17 +321,14 @@
     }
 
     function tutupSheet() {
-      // Hapus timer jika panitia menutup secara manual (X) agar tidak bentrok
       clearTimeout(autoCloseTimer); 
       
       document.getElementById("resultSheet").classList.remove("show");
       document.getElementById("manualId").value = "";
       
-      // Jeda setengah detik untuk animasi turun sebelum kamera kembali menyala
+      // PERBAIKAN: Fungsi resume() dihapus. 
+      // Kita cukup kembalikan nilai isScanning = true agar sistem siap membaca tiket lagi.
       setTimeout(() => {
-        if(html5QrCode.getState() === 2) { 
-          html5QrCode.resume();
-        }
         isScanning = true;
       }, 500);
     }
