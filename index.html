@@ -2,95 +2,315 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Scanner Panitia Acara</title>
-  <!-- Library Scanner QR Code -->
+  
+  <!-- Library QR Code Murni (Tanpa UI Bawaan) -->
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <!-- Library Icon Lucide untuk icon sukses/gagal yang cantik -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
   <style>
-    body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #fff; margin:0; padding:20px; text-align:center; }
-    h2 { color: #3498db; }
-    /* Area Kamera */
-    #reader { width: 100%; max-width: 400px; margin: auto; border-radius: 12px; overflow: hidden; border: 3px solid #333; background: #000; }
-    /* Kotak Hasil */
-    .status-box { margin-top: 20px; padding: 20px; border-radius: 10px; font-weight: bold; font-size: 18px; display: none; transition: 0.3s; }
-    .sukses { background: #27ae60; color: white; border: 2px solid #2ecc71; box-shadow: 0 0 15px #27ae60; }
-    .peringatan { background: #f39c12; color: white; border: 2px solid #f1c40f; }
-    .gagal { background: #c0392b; color: white; border: 2px solid #e74c3c; box-shadow: 0 0 15px #c0392b; }
-    /* Input Manual */
-    .manual-input { margin-top: 30px; padding-top: 20px; border-top: 1px solid #333; }
-    input { padding: 12px; border-radius: 6px; border: none; font-size: 16px; width: 60%; max-width: 200px; text-align: center; }
-    button { padding: 12px 20px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; }
-    button:hover { background: #2980b9; }
+    /* RESET & DASAR */
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { background-color: #000; overflow: hidden; color: white; }
+
+    /* AREA KAMERA FULL SCREEN */
+    #reader {
+      position: absolute;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      object-fit: cover;
+      z-index: 1;
+    }
+    
+    /* OVERLAY GELAP (Agar fokus ke tengah) */
+    .overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.4); z-index: 2;
+      pointer-events: none;
+    }
+
+    /* KOTAK SCANNER & SIKU-SIKU (Brackets) */
+    .scan-area {
+      position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+      width: 250px; height: 250px;
+      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.5); /* Efek gelap di luar kotak */
+      border-radius: 10px; z-index: 3;
+    }
+    .corner { position: absolute; width: 40px; height: 40px; border-color: #fff; border-style: solid; }
+    .tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-top-left-radius: 10px; }
+    .tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-top-right-radius: 10px; }
+    .bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-bottom-left-radius: 10px; }
+    .br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-bottom-right-radius: 10px; }
+    
+    /* TEKS INSTRUKSI */
+    .instruction { position: absolute; top: calc(40% + 160px); left: 50%; transform: translateX(-50%); text-align: center; font-size: 14px; letter-spacing: 0.5px; z-index: 3; width: 100%; }
+
+    /* TOMBOL HAMBURGER (MENU KIRI ATAS) */
+    .menu-btn {
+      position: absolute; top: 20px; left: 20px; z-index: 10;
+      background: transparent; border: none; color: white; cursor: pointer; padding: 10px;
+    }
+
+    /* SIDEBAR (MENU TERSEMBUNYI) */
+    .sidebar {
+      position: absolute; top: 0; left: -100%; width: 280px; height: 100vh;
+      background: #111827; z-index: 20; transition: 0.3s ease-in-out;
+      padding: 30px 20px; box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+    }
+    .sidebar.active { left: 0; }
+    .sidebar h3 { margin-bottom: 20px; font-size: 18px; color: #3b82f6; border-bottom: 1px solid #374151; padding-bottom: 10px; }
+    .sidebar label { font-size: 12px; color: #9ca3af; margin-bottom: 5px; display: block; }
+    .sidebar input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #374151; background: #1f2937; color: white; margin-bottom: 15px; }
+    .sidebar button { width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+    .sidebar button.close-menu { background: #ef4444; margin-top: 20px; }
+
+    /* POP-UP HASIL (BOTTOM SHEET) */
+    .bottom-sheet {
+      position: absolute; bottom: -150%; left: 50%; transform: translateX(-50%);
+      width: 90%; max-width: 400px; background: white; border-radius: 16px;
+      padding: 20px; z-index: 30; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      color: #1f2937; display: flex; gap: 15px; align-items: flex-start;
+      box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
+    }
+    .bottom-sheet.show { bottom: 30px; }
+    
+    /* Varian Warna Border Bawah Pop-up */
+    .bottom-sheet.sukses { border-bottom: 5px solid #22c55e; }
+    .bottom-sheet.gagal { border-bottom: 5px solid #ef4444; }
+    .bottom-sheet.peringatan { border-bottom: 5px solid #f59e0b; }
+
+    /* Icon Bulat di Pop-up */
+    .icon-circle { width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+    .sukses .icon-circle { background: #22c55e; color: white; }
+    .gagal .icon-circle { background: #ef4444; color: white; }
+    .peringatan .icon-circle { background: #f59e0b; color: white; }
+
+    /* Teks Pop-up */
+    .sheet-content { flex: 1; }
+    .sheet-content h4 { font-size: 18px; margin-bottom: 4px; }
+    .sheet-content p { font-size: 13px; color: #4b5563; line-height: 1.4; }
+    
+    /* Tombol Close Pop-up (X) */
+    .close-sheet { background: none; border: none; color: #9ca3af; cursor: pointer; padding: 5px; }
   </style>
 </head>
 <body>
 
-  <h2>📷 Scanner Pintu Masuk</h2>
-  <p>Arahkan QR Code Tiket ke kamera</p>
+  <!-- TOMBOL MENU HAMBURGER -->
+  <button class="menu-btn" onclick="toggleMenu()">
+    <i data-lucide="menu" style="width: 30px; height: 30px;"></i>
+  </button>
 
+  <!-- BACKGROUND KAMERA -->
   <div id="reader"></div>
-  
-  <div id="resultBox" class="status-box">Menunggu hasil...</div>
 
-  <div class="manual-input">
-    <p style="color:#aaa; font-size:14px;">Kamera rusak? Input manual ID tiket:</p>
-    <input type="text" id="manualId" placeholder="TIKET-...">
-    <button onclick="kirimDataScanner(document.getElementById('manualId').value)">Cek Tiket</button>
+  <!-- UI SCANNER (KOTAK & TEKS) -->
+  <div class="scan-area">
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+  </div>
+  <p class="instruction">Arahkan kamera ke QR code tiket</p>
+
+  <!-- SIDEBAR MENU (TERSEMBUNYI) -->
+  <div id="sidebar" class="sidebar">
+    <h3>Pengaturan Panitia</h3>
+    
+    <label>Input Manual (Jika Kamera Rusak)</label>
+    <input type="text" id="manualId" placeholder="TIKET-X-XXXX">
+    <button onclick="kirimManual()">Proses Tiket</button>
+    
+    <hr style="border-color: #374151; margin: 20px 0;">
+    
+    <label>Kamera</label>
+    <button onclick="gantiKamera()" style="background: #4b5563;">🔄 Ganti Kamera Depan/Belakang</button>
+    
+    <button class="close-menu" onclick="toggleMenu()">Tutup Menu</button>
   </div>
 
+  <!-- POP-UP HASIL SCAN (BOTTOM SHEET) -->
+  <div id="resultSheet" class="bottom-sheet">
+    <div id="sheetIcon" class="icon-circle"></div>
+    <div class="sheet-content">
+      <h4 id="sheetTitle">Berhasil!</h4>
+      <p id="sheetDesc">Memproses data...</p>
+    </div>
+    <button class="close-sheet" onclick="tutupSheet()">
+      <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+    </button>
+  </div>
+
+  <!-- SCRIPT LOGIKA PROGRAM -->
   <script>
-    // MASUKKAN URL WEB APP ANDA DI BAWAH INI (Yang didapat dari langkah Deploy Ulang Apps Script)
+    // Inisialisasi Icon
+    lucide.createIcons();
+
+    // =========================================================
+    // 1. MASUKKAN URL APPS SCRIPT ANDA DI ANTARA TANDA KUTIP DI BAWAH INI:
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbymk3Iq0_keHaOUJnmQ7OSURmLoOQ2tWboWQ2UODFQy5oxCPeZIwuQkSEo-7y7Cgwr2/exec";
+    // =========================================================
 
-    // Inisialisasi Scanner
-    const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, /* verbose= */ false);
-    
+    let html5QrCode;
     let isScanning = true;
+    let isFrontCamera = false;
 
-    function onScanSuccess(decodedText, decodedResult) {
-      if (!isScanning) return; // Mencegah scan berulang
-      isScanning = false;
-      html5QrcodeScanner.pause(); // Jeda kamera sebentar saat memproses
-      kirimDataScanner(decodedText);
+    // --- MESIN SUARA & GETARAN ---
+    let audioCtx;
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
     }
 
-    function kirimDataScanner(idTiket) {
-      if(!idTiket) return;
-      
-      const resultBox = document.getElementById("resultBox");
-      resultBox.className = "status-box";
-      resultBox.style.display = "block";
-      resultBox.style.background = "#333";
-      resultBox.innerText = "⏳ Sedang memvalidasi tiket...";
+    // Mengaktifkan izin audio saat panitia pertama kali menyentuh layar
+    document.body.addEventListener('touchstart', initAudio, { once: true });
+    document.body.addEventListener('click', initAudio, { once: true });
 
-      // Menembak Data ke Backend (Apps Script)
+    function berikanFeedback(status) {
+      if ("vibrate" in navigator) {
+        if (status === "sukses") {
+          navigator.vibrate(100); 
+        } else {
+          navigator.vibrate([300, 150, 300]); 
+        }
+      }
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        if (status === "sukses") {
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
+          gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.3);
+        } else {
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+          gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.5);
+        }
+      } catch(e) {
+        console.log("Audio tidak didukung.");
+      }
+    }
+
+    // --- KAMERA & SCANNER ---
+    window.onload = () => {
+      html5QrCode = new Html5Qrcode("reader");
+      startCamera();
+    };
+
+    function startCamera() {
+      const cameraFacing = isFrontCamera ? "user" : "environment";
+      html5QrCode.start(
+        { facingMode: cameraFacing },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          if (isScanning) {
+            isScanning = false;
+            html5QrCode.pause(); 
+            prosesDataTiket(decodedText);
+          }
+        }
+      ).catch(err => {
+        alert("Gagal mengakses kamera. Pastikan browser memiliki izin.");
+      });
+    }
+
+    function gantiKamera() {
+      isFrontCamera = !isFrontCamera;
+      html5QrCode.stop().then(() => {
+        startCamera();
+        toggleMenu(); 
+      });
+    }
+
+    function kirimManual() {
+      const id = document.getElementById("manualId").value;
+      if (!id) return;
+      toggleMenu(); 
+      isScanning = false;
+      prosesDataTiket(id);
+    }
+
+    // --- LOGIKA FETCH KE API ---
+    function prosesDataTiket(idTiket) {
+      tampilkanLoading();
       fetch(APPS_SCRIPT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Wajib text/plain agar tidak error CORS
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: "scan", idTiket: idTiket })
       })
       .then(response => response.json())
       .then(data => {
-        // Tampilkan hasil berdasarkan respon dari Apps Script
-        resultBox.innerText = data.pesan;
-        resultBox.className = "status-box " + data.status;
-        
-        // Nyalakan ulang kamera setelah 3 detik untuk tamu selanjutnya
-        setTimeout(() => {
-          resultBox.style.display = "none";
-          isScanning = true;
-          html5QrcodeScanner.resume();
-        }, 3000);
+        tampilkanSheet(data.status, data.pesan);
       })
       .catch(error => {
-        resultBox.innerText = "Koneksi Error. Pastikan internet menyala.";
-        resultBox.className = "status-box gagal";
-        setTimeout(() => { isScanning = true; html5QrcodeScanner.resume(); }, 3000);
+        tampilkanSheet("gagal", "Koneksi terputus. Pastikan internet panitia stabil.");
       });
     }
 
-    // Mulai jalankan kamera
-    html5QrcodeScanner.render(onScanSuccess);
+    // --- KONTROL UI ---
+    function toggleMenu() {
+      document.getElementById("sidebar").classList.toggle("active");
+    }
+
+    function tampilkanLoading() {
+      const sheet = document.getElementById("resultSheet");
+      document.getElementById("sheetTitle").innerText = "Memproses...";
+      document.getElementById("sheetDesc").innerText = "Menghubungi server...";
+      document.getElementById("sheetIcon").innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i>';
+      sheet.className = "bottom-sheet show";
+      lucide.createIcons();
+    }
+
+    function tampilkanSheet(status, pesan) {
+      const sheet = document.getElementById("resultSheet");
+      const title = document.getElementById("sheetTitle");
+      const desc = document.getElementById("sheetDesc");
+      const icon = document.getElementById("sheetIcon");
+
+      sheet.className = "bottom-sheet show " + status;
+      desc.innerText = pesan;
+
+      if (status === "sukses") {
+        title.innerText = "Berhasil!";
+        icon.innerHTML = '<i data-lucide="check"></i>';
+      } else if (status === "peringatan") {
+        title.innerText = "Sudah Absen";
+        icon.innerHTML = '<i data-lucide="alert-circle"></i>';
+      } else {
+        title.innerText = "Tidak Ditemukan";
+        icon.innerHTML = '<i data-lucide="x"></i>';
+      }
+      
+      lucide.createIcons();
+      berikanFeedback(status); 
+    }
+
+    function tutupSheet() {
+      document.getElementById("resultSheet").classList.remove("show");
+      document.getElementById("manualId").value = "";
+      
+      setTimeout(() => {
+        if(html5QrCode.getState() === 2) { 
+          html5QrCode.resume();
+        }
+        isScanning = true;
+      }, 500);
+    }
   </script>
 </body>
 </html>
