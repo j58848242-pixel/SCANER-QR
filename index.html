@@ -75,6 +75,10 @@
     .zoom-badge { display: flex; align-items: center; gap: 6px; position: fixed; right: max(22px, env(safe-area-inset-right)); top: max(78px, calc(env(safe-area-inset-top) + 62px)); z-index: 4; padding: 8px 11px; color: #d7f8ff; border: 1px solid rgba(88,213,255,.24); border-radius: 999px; background: rgba(7,17,31,.64); backdrop-filter: blur(12px); font-size: 11px; font-weight: 700; opacity: 0; transform: translateY(-5px); transition: .3s; }
     .zoom-badge.active { opacity: 1; transform: translateY(0); }
     .zoom-badge svg { color: var(--cyan); }
+    .torch-on { color: #ffe5a4 !important; border-color: rgba(255,184,77,.55) !important; background: rgba(91,58,17,.7) !important; }
+    .camera-error { position: fixed; left: 50%; top: 50%; z-index: 2; width: min(80vw, 320px); padding: 20px; border: 1px solid rgba(255,85,112,.3); border-radius: 16px; background: rgba(7,17,31,.9); text-align: center; transform: translate(-50%, -50%); }
+    .camera-error strong { display: block; margin-bottom: 6px; font: 700 15px "Plus Jakarta Sans"; }
+    .camera-error p { color: var(--muted); font-size: 12px; line-height: 1.5; }
     @keyframes scan { 0%,100% { transform: translateY(-125px); opacity: .4; } 50% { transform: translateY(125px); opacity: 1; } }
     @media (min-width: 600px) { .bottom-controls { left: 50%; right: auto; width: 500px; transform: translateX(-50%); } }
   </style>
@@ -94,6 +98,7 @@
   </main>
   <div class="bottom-controls"><div class="control-row">
     <button class="control" onclick="toggleMenu()"><i data-lucide="keyboard" width="17"></i> Input manual</button>
+    <button id="torchButton" class="control" onclick="toggleTorch()" aria-label="Nyalakan senter"><i data-lucide="flashlight" width="17"></i> Senter</button>
     <button class="control" onclick="gantiKamera()"><i data-lucide="switch-camera" width="17"></i> Ganti kamera</button>
   </div></div>
   <div id="overlay" class="drawer-overlay" onclick="toggleMenu()"></div>
@@ -112,7 +117,7 @@
   <script>
     lucide.createIcons();
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAvT3N-lnddFImO2kD5mLLP0zXXX0FI7AtZrV7zk1tboLSC6Cv2K-wA617uxd3MRqJ/exec";
-    let html5QrCode, isScanning = true, isFrontCamera = false, autoCloseTimer, audioCtx;
+    let html5QrCode, isScanning = true, isFrontCamera = false, autoCloseTimer, audioCtx, activeTrack, torchOn = false;
     function initAudio() { if (!audioCtx) { const C = window.AudioContext || window.webkitAudioContext; if (C) audioCtx = new C(); } if (audioCtx?.state === "suspended") audioCtx.resume(); }
     document.body.addEventListener("touchstart", initAudio, { once: true }); document.body.addEventListener("click", initAudio, { once: true });
     function feedback(status) {
@@ -121,7 +126,9 @@
     }
     window.addEventListener("load", () => { html5QrCode = new Html5Qrcode("reader"); startCamera(); });
     function startCamera() {
-      html5QrCode.start({ facingMode: isFrontCamera ? "user" : "environment" }, { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.777 }, text => { if (isScanning) { isScanning = false; prosesDataTiket(text); } }).then(aktifkanAutoZoom).catch(() => tampilkanSheet("gagal", "Kamera tidak dapat diakses. Periksa izin kamera browser."));
+      html5QrCode.start({ facingMode: isFrontCamera ? "user" : "environment" }, { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.777 }, text => { if (isScanning) { isScanning = false; prosesDataTiket(text); } }).then(() => { activeTrack = document.querySelector("#reader video")?.srcObject?.getVideoTracks?.()[0]; aktifkanAutoZoom(); }).catch(() => {
+        document.getElementById("reader").innerHTML = '<div class="camera-error"><strong>Kamera belum tersedia</strong><p>Izinkan akses kamera di Safari, lalu muat ulang halaman untuk mulai memindai.</p></div>';
+      });
     }
     function aktifkanAutoZoom() {
       const video = document.querySelector("#reader video"), track = video?.srcObject?.getVideoTracks?.()[0];
@@ -135,317 +142,18 @@
         badge.classList.add("active");
       }).catch(() => {});
     }
-    function gantiKamera() { isFrontCamera = !isFrontCamera; document.getElementById("zoomBadge").classList.remove("active"); html5QrCode.stop().then(startCamera).catch(startCamera); toggleMenu(false); }
-    function toggleMenu(force) { const open = force === undefined ? !document.getElementById("drawer").classList.contains("open") : force; document.getElementById("drawer").classList.toggle("open", open); document.getElementById("overlay").classList.toggle("open", open); }
-    function kirimManual() { const input = document.getElementById("manualId"), id = input.value.trim(); if (!id) { input.focus(); return; } isScanning = false; toggleMenu(false); prosesDataTiket(id); }
-    function prosesDataTiket(idTiket) {
-      tampilkanLoading();
-      fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "scan", idTiket }) })
-        .then(r => r.json()).then(data => tampilkanSheet(data.status, data.pesan)).catch(() => tampilkanSheet("gagal", "Koneksi terputus. Pastikan internet panitia stabil."));
+    function toggleTorch() {
+      if (!activeTrack || isFrontCamera || !activeTrack.getCapabilities?.().torch) { tampilkanSheet("peringatan", "Senter tidak didukung oleh kamera ini."); return; }
+      torchOn = !torchOn;
+      activeTrack.applyConstraints({ advanced: [{ torch: torchOn }] }).then(() => {
+        const button = document.getElementById("torchButton");
+        button.classList.toggle("torch-on", torchOn);
+        button.querySelector("i")?.setAttribute("data-lucide", torchOn ? "sun" : "flashlight");
+        button.lastChild.textContent = torchOn ? " Senter aktif" : " Senter";
+        lucide.createIcons();
+      }).catch(() => tampilkanSheet("gagal", "Senter tidak dapat diaktifkan pada perangkat ini."));
     }
-    function tampilkanLoading() { const s = document.getElementById("resultSheet"); s.className = "result show loading"; document.getElementById("sheetTitle").textContent = "Memproses tiket"; document.getElementById("sheetDesc").textContent = "Menghubungi server..."; document.getElementById("sheetIcon").innerHTML = '<i data-lucide="loader-2" class="spin"></i>'; lucide.createIcons(); clearTimeout(autoCloseTimer); }
-    function tampilkanSheet(status, pesan) {
-      const s = document.getElementById("resultSheet"), map = { sukses: ["success", "Tiket valid", "check"], peringatan: ["warning", "Sudah digunakan", "alert-circle"], gagal: ["error", "Tiket tidak valid", "x-circle"] }, item = map[status] || map.gagal;
-      s.className = "result show " + item[0]; document.getElementById("sheetTitle").textContent = item[1]; document.getElementById("sheetDesc").textContent = pesan || "Tidak ada detail tambahan."; document.getElementById("sheetIcon").innerHTML = `<i data-lucide="${item[2]}" width="21"></i>`; lucide.createIcons(); feedback(status);
-      clearTimeout(autoCloseTimer); autoCloseTimer = setTimeout(tutupSheet, 3000);
-    }
-    function tutupSheet() { clearTimeout(autoCloseTimer); document.getElementById("resultSheet").classList.remove("show"); document.getElementById("manualId").value = ""; setTimeout(() => isScanning = true, 450); }
-  </script>
-  <style>.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }</style>
-</body>
-</html><!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#07111f">
-  <title>GateScan — Scanner Tiket</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    :root {
-      --navy: #07111f; --navy-2: #0d1b2e; --line: rgba(255,255,255,.12);
-      --muted: #9aabc0; --white: #f8fbff; --blue: #4f8cff;
-      --cyan: #58d5ff; --green: #28d17c; --red: #ff5570; --amber: #ffb84d;
-    }
-    * { box-sizing: border-box; margin: 0; }
-    html, body { width: 100%; min-height: 100%; height: 100%; background: var(--navy); color: var(--white); font-family: "DM Sans", sans-serif; }
-    body { overflow: hidden; position: fixed; inset: 0; min-height: 100dvh; }
-    button, input { font: inherit; }
-    button { cursor: pointer; }
-    #reader { position: fixed; inset: 0; z-index: 0; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; background: #050b13; }
-    #reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; filter: saturate(.85) contrast(1.04); }
-    #reader canvas, #qr-shaded-region { display: none !important; }
-    .camera-wash { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(3,10,19,.84) 0%, rgba(3,10,19,.05) 36%, rgba(3,10,19,.1) 65%, rgba(3,10,19,.92) 100%); }
-    .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; padding: max(22px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) 18px max(22px, env(safe-area-inset-left)); }
-    .brand { display: flex; align-items: center; gap: 11px; }
-    .brand-mark { display: grid; place-items: center; width: 39px; height: 39px; border: 1px solid rgba(88,213,255,.45); border-radius: 12px; color: var(--cyan); background: rgba(7,17,31,.72); box-shadow: 0 0 24px rgba(79,140,255,.18); }
-    .brand-name { font-family: "Plus Jakarta Sans"; font-size: 16px; letter-spacing: -.4px; font-weight: 800; }
-    .brand-sub { color: var(--muted); font-size: 11px; margin-top: 1px; }
-    .online { display: flex; align-items: center; gap: 7px; color: #d8fceb; font-size: 12px; font-weight: 600; padding: 9px 12px; border: 1px solid rgba(40,209,124,.28); border-radius: 999px; background: rgba(7,17,31,.68); }
-    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(40,209,124,.14); }
-    .center { position: fixed; inset: 0; z-index: 3; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(70px, calc(env(safe-area-inset-top) + 45px)) 20px max(145px, calc(env(safe-area-inset-bottom) + 120px)); }
-    .scan-heading { text-align: center; margin-bottom: 28px; text-shadow: 0 2px 15px #000; }
-    .scan-heading h1 { font-family: "Plus Jakarta Sans"; font-size: clamp(22px, 5vw, 30px); letter-spacing: -.8px; }
-    .scan-heading p { margin-top: 8px; color: #d0dae6; font-size: 13px; }
-    .scan-box { position: relative; width: min(76vw, 290px); aspect-ratio: 1; border-radius: 24px; box-shadow: 0 0 0 999px rgba(2,8,15,.54), 0 0 45px rgba(88,213,255,.14); }
-    .scan-box::before { content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: linear-gradient(90deg, transparent, var(--cyan), transparent); box-shadow: 0 0 12px var(--cyan); animation: scan 2.4s ease-in-out infinite; }
-    .corner { position: absolute; width: 42px; height: 42px; border-color: var(--cyan); border-style: solid; filter: drop-shadow(0 0 6px rgba(88,213,255,.5)); }
-    .tl { top: 0; left: 0; border-width: 4px 0 0 4px; border-radius: 18px 0 0 0; }
-    .tr { top: 0; right: 0; border-width: 4px 4px 0 0; border-radius: 0 18px 0 0; }
-    .bl { bottom: 0; left: 0; border-width: 0 0 4px 4px; border-radius: 0 0 0 18px; }
-    .br { bottom: 0; right: 0; border-width: 0 4px 4px 0; border-radius: 0 0 18px 0; }
-    .scan-hint { margin-top: 28px; color: #e1e8f1; font-size: 13px; text-align: center; text-shadow: 0 2px 10px #000; }
-    .bottom-controls { position: fixed; z-index: 4; bottom: 0; left: 0; right: 0; padding: 20px max(22px, env(safe-area-inset-right)) max(24px, calc(env(safe-area-inset-bottom) + 10px)) max(22px, env(safe-area-inset-left)); background: linear-gradient(transparent, rgba(4,11,20,.95) 28%); }
-    .control-row { display: flex; justify-content: center; gap: 12px; }
-    .control { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; color: #e8f0f9; background: rgba(10,25,43,.88); border: 1px solid var(--line); border-radius: 13px; font-size: 13px; font-weight: 600; backdrop-filter: blur(14px); transition: .2s; }
-    .control:hover { border-color: rgba(88,213,255,.5); transform: translateY(-1px); }
-    .menu-btn { position: fixed; top: max(78px, calc(env(safe-area-inset-top) + 62px)); left: 22px; z-index: 5; display: grid; place-items: center; width: 42px; height: 42px; color: white; border: 1px solid var(--line); border-radius: 12px; background: rgba(7,17,31,.7); backdrop-filter: blur(12px); }
-    .drawer-overlay { position: fixed; inset: 0; z-index: 8; visibility: hidden; background: rgba(0,0,0,.45); opacity: 0; transition: .25s; }
-    .drawer-overlay.open { visibility: visible; opacity: 1; }
-    .drawer { position: fixed; top: 0; bottom: 0; left: 0; z-index: 9; width: min(86vw, 360px); padding: max(28px, env(safe-area-inset-top)) 24px 26px; background: var(--navy-2); border-right: 1px solid var(--line); transform: translateX(-105%); transition: transform .3s cubic-bezier(.2,.8,.2,1); box-shadow: 12px 0 40px rgba(0,0,0,.35); }
-    .drawer.open { transform: translateX(0); }
-    .drawer-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 34px; }
-    .drawer h2 { font-family: "Plus Jakarta Sans"; font-size: 18px; }
-    .icon-btn { display: grid; place-items: center; width: 38px; height: 38px; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; background: transparent; }
-    .section-label { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 1.5px; font-weight: 700; margin: 22px 0 10px; }
-    .manual-box { padding: 15px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 15px; }
-    .manual-box p { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 12px; }
-    .manual-box input { width: 100%; padding: 12px; color: white; outline: none; border: 1px solid #2a405a; border-radius: 10px; background: #091728; font-size: 13px; }
-    .manual-box input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(79,140,255,.13); }
-    .primary { width: 100%; margin-top: 10px; padding: 12px; color: white; border: 0; border-radius: 10px; background: linear-gradient(135deg, #4f8cff, #6b62f8); font-weight: 700; }
-    .drawer-action { display: flex; align-items: center; width: 100%; gap: 12px; padding: 13px 0; color: #e5edf6; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; font-weight: 600; font-size: 13px; }
-    .drawer-action svg { color: var(--cyan); }
-    .result { position: fixed; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); z-index: 7; display: flex; align-items: center; gap: 13px; width: min(calc(100% - 32px), 410px); padding: 15px; color: #102033; border-radius: 17px; background: #f8fbff; box-shadow: 0 15px 50px rgba(0,0,0,.45); transform: translate(-50%, calc(100% + 50px)); transition: .4s cubic-bezier(.2,.9,.25,1.2); }
-    .result.show { transform: translate(-50%, 0); }
-    .result.success { border-left: 5px solid var(--green); } .result.warning { border-left: 5px solid var(--amber); } .result.error { border-left: 5px solid var(--red); }
-    .result-icon { display: grid; place-items: center; flex: 0 0 43px; width: 43px; height: 43px; color: white; border-radius: 13px; background: var(--green); }
-    .warning .result-icon { background: var(--amber); } .error .result-icon { background: var(--red); } .loading .result-icon { background: var(--blue); }
-    .result h3 { font: 700 15px "Plus Jakarta Sans"; } .result p { margin-top: 3px; color: #536273; font-size: 12px; line-height: 1.4; }
-    .close-result { margin-left: auto; color: #8c9aab; border: 0; background: none; }
-    .hidden { display: none; }
-    .zoom-badge { display: flex; align-items: center; gap: 6px; position: fixed; right: max(22px, env(safe-area-inset-right)); top: max(78px, calc(env(safe-area-inset-top) + 62px)); z-index: 4; padding: 8px 11px; color: #d7f8ff; border: 1px solid rgba(88,213,255,.24); border-radius: 999px; background: rgba(7,17,31,.64); backdrop-filter: blur(12px); font-size: 11px; font-weight: 700; opacity: 0; transform: translateY(-5px); transition: .3s; }
-    .zoom-badge.active { opacity: 1; transform: translateY(0); }
-    .zoom-badge svg { color: var(--cyan); }
-    @keyframes scan { 0%,100% { transform: translateY(-125px); opacity: .4; } 50% { transform: translateY(125px); opacity: 1; } }
-    @media (min-width: 600px) { .bottom-controls { left: 50%; right: auto; width: 500px; transform: translateX(-50%); } }
-  </style>
-</head>
-<body>
-  <div id="reader"></div><div class="camera-wash"></div>
-  <header class="topbar">
-    <div class="brand"><div class="brand-mark"><i data-lucide="scan-line" width="21"></i></div><div><div class="brand-name">GateScan</div><div class="brand-sub">Scanner tiket acara</div></div></div>
-    <div class="online"><span class="dot"></span> Sistem aktif</div>
-  </header>
-  <button class="menu-btn" aria-label="Buka menu" onclick="toggleMenu()"><i data-lucide="menu" width="20"></i></button>
-  <div id="zoomBadge" class="zoom-badge"><i data-lucide="scan-focus" width="14"></i><span>Auto zoom aktif</span></div>
-  <main class="center">
-    <div class="scan-heading"><h1>Scan tiket masuk</h1><p>Verifikasi tiket dengan cepat dan aman</p></div>
-    <div class="scan-box" aria-label="Area pemindaian QR"><span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span></div>
-    <p class="scan-hint">Posisikan QR code di dalam kotak</p>
-  </main>
-  <div class="bottom-controls"><div class="control-row">
-    <button class="control" onclick="toggleMenu()"><i data-lucide="keyboard" width="17"></i> Input manual</button>
-    <button class="control" onclick="gantiKamera()"><i data-lucide="switch-camera" width="17"></i> Ganti kamera</button>
-  </div></div>
-  <div id="overlay" class="drawer-overlay" onclick="toggleMenu()"></div>
-  <aside id="drawer" class="drawer">
-    <div class="drawer-head"><div><div class="brand-sub">PANEL PANITIA</div><h2>Kontrol scanner</h2></div><button class="icon-btn" onclick="toggleMenu()" aria-label="Tutup"><i data-lucide="x" width="18"></i></button></div>
-    <div class="section-label">Verifikasi alternatif</div>
-    <div class="manual-box"><p>Gunakan input manual jika QR code sulit dipindai atau kamera bermasalah.</p><input id="manualId" type="text" placeholder="Contoh: TIKET-X-XXXX" autocomplete="off"><button class="primary" onclick="kirimManual()"><i data-lucide="check-circle-2" width="16" style="vertical-align:-3px"></i> Proses tiket</button></div>
-    <div class="section-label">Perangkat</div>
-    <button class="drawer-action" onclick="gantiKamera()"><i data-lucide="switch-camera" width="18"></i> Ganti kamera perangkat</button>
-    <button class="drawer-action" onclick="toggleMenu()"><i data-lucide="scan-line" width="18"></i> Kembali ke pemindaian</button>
-  </aside>
-  <section id="resultSheet" class="result" role="status">
-    <div id="sheetIcon" class="result-icon"></div><div><h3 id="sheetTitle">Memproses tiket</h3><p id="sheetDesc">Menghubungi server...</p></div>
-    <button class="close-result" onclick="tutupSheet()" aria-label="Tutup hasil"><i data-lucide="x" width="18"></i></button>
-  </section>
-  <script>
-    lucide.createIcons();
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAvT3N-lnddFImO2kD5mLLP0zXXX0FI7AtZrV7zk1tboLSC6Cv2K-wA617uxd3MRqJ/exec";
-    let html5QrCode, isScanning = true, isFrontCamera = false, autoCloseTimer, audioCtx;
-    function initAudio() { if (!audioCtx) { const C = window.AudioContext || window.webkitAudioContext; if (C) audioCtx = new C(); } if (audioCtx?.state === "suspended") audioCtx.resume(); }
-    document.body.addEventListener("touchstart", initAudio, { once: true }); document.body.addEventListener("click", initAudio, { once: true });
-    function feedback(status) {
-      navigator.vibrate?.(status === "sukses" ? 100 : [220, 120, 220]);
-      try { initAudio(); if (!audioCtx) return; const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = status === "sukses" ? "sine" : "square"; o.frequency.value = status === "sukses" ? 880 : 180; g.gain.setValueAtTime(.25, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.01, audioCtx.currentTime + .28); o.start(); o.stop(audioCtx.currentTime + .3); } catch(e) {}
-    }
-    window.addEventListener("load", () => { html5QrCode = new Html5Qrcode("reader"); startCamera(); });
-    function startCamera() {
-      html5QrCode.start({ facingMode: isFrontCamera ? "user" : "environment" }, { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.777 }, text => { if (isScanning) { isScanning = false; prosesDataTiket(text); } }).then(aktifkanAutoZoom).catch(() => tampilkanSheet("gagal", "Kamera tidak dapat diakses. Periksa izin kamera browser."));
-    }
-    function aktifkanAutoZoom() {
-      const video = document.querySelector("#reader video"), track = video?.srcObject?.getVideoTracks?.()[0];
-      if (!track || isFrontCamera) return;
-      const capability = track.getCapabilities?.(), zoom = capability?.zoom;
-      if (!zoom) return;
-      const target = Math.min(zoom.max, Math.max(zoom.min, zoom.min + (zoom.max - zoom.min) * .22));
-      track.applyConstraints({ advanced: [{ zoom: target }] }).then(() => {
-        const badge = document.getElementById("zoomBadge");
-        badge.querySelector("span").textContent = `Auto zoom ${target.toFixed(1)}×`;
-        badge.classList.add("active");
-      }).catch(() => {});
-    }
-    function gantiKamera() { isFrontCamera = !isFrontCamera; document.getElementById("zoomBadge").classList.remove("active"); html5QrCode.stop().then(startCamera).catch(startCamera); toggleMenu(false); }
-    function toggleMenu(force) { const open = force === undefined ? !document.getElementById("drawer").classList.contains("open") : force; document.getElementById("drawer").classList.toggle("open", open); document.getElementById("overlay").classList.toggle("open", open); }
-    function kirimManual() { const input = document.getElementById("manualId"), id = input.value.trim(); if (!id) { input.focus(); return; } isScanning = false; toggleMenu(false); prosesDataTiket(id); }
-    function prosesDataTiket(idTiket) {
-      tampilkanLoading();
-      fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "scan", idTiket }) })
-        .then(r => r.json()).then(data => tampilkanSheet(data.status, data.pesan)).catch(() => tampilkanSheet("gagal", "Koneksi terputus. Pastikan internet panitia stabil."));
-    }
-    function tampilkanLoading() { const s = document.getElementById("resultSheet"); s.className = "result show loading"; document.getElementById("sheetTitle").textContent = "Memproses tiket"; document.getElementById("sheetDesc").textContent = "Menghubungi server..."; document.getElementById("sheetIcon").innerHTML = '<i data-lucide="loader-2" class="spin"></i>'; lucide.createIcons(); clearTimeout(autoCloseTimer); }
-    function tampilkanSheet(status, pesan) {
-      const s = document.getElementById("resultSheet"), map = { sukses: ["success", "Tiket valid", "check"], peringatan: ["warning", "Sudah digunakan", "alert-circle"], gagal: ["error", "Tiket tidak valid", "x-circle"] }, item = map[status] || map.gagal;
-      s.className = "result show " + item[0]; document.getElementById("sheetTitle").textContent = item[1]; document.getElementById("sheetDesc").textContent = pesan || "Tidak ada detail tambahan."; document.getElementById("sheetIcon").innerHTML = `<i data-lucide="${item[2]}" width="21"></i>`; lucide.createIcons(); feedback(status);
-      clearTimeout(autoCloseTimer); autoCloseTimer = setTimeout(tutupSheet, 3000);
-    }
-    function tutupSheet() { clearTimeout(autoCloseTimer); document.getElementById("resultSheet").classList.remove("show"); document.getElementById("manualId").value = ""; setTimeout(() => isScanning = true, 450); }
-  </script>
-  <style>.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }</style>
-</body>
-</html><!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#07111f">
-  <title>GateScan — Scanner Tiket</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    :root {
-      --navy: #07111f; --navy-2: #0d1b2e; --line: rgba(255,255,255,.12);
-      --muted: #9aabc0; --white: #f8fbff; --blue: #4f8cff;
-      --cyan: #58d5ff; --green: #28d17c; --red: #ff5570; --amber: #ffb84d;
-    }
-    * { box-sizing: border-box; margin: 0; }
-    html, body { width: 100%; min-height: 100%; height: 100%; background: var(--navy); color: var(--white); font-family: "DM Sans", sans-serif; }
-    body { overflow: hidden; position: fixed; inset: 0; min-height: 100dvh; }
-    button, input { font: inherit; }
-    button { cursor: pointer; }
-    #reader { position: fixed; inset: 0; z-index: 0; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; background: #050b13; }
-    #reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; filter: saturate(.85) contrast(1.04); }
-    #reader canvas, #qr-shaded-region { display: none !important; }
-    .camera-wash { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(3,10,19,.84) 0%, rgba(3,10,19,.05) 36%, rgba(3,10,19,.1) 65%, rgba(3,10,19,.92) 100%); }
-    .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; padding: max(22px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) 18px max(22px, env(safe-area-inset-left)); }
-    .brand { display: flex; align-items: center; gap: 11px; }
-    .brand-mark { display: grid; place-items: center; width: 39px; height: 39px; border: 1px solid rgba(88,213,255,.45); border-radius: 12px; color: var(--cyan); background: rgba(7,17,31,.72); box-shadow: 0 0 24px rgba(79,140,255,.18); }
-    .brand-name { font-family: "Plus Jakarta Sans"; font-size: 16px; letter-spacing: -.4px; font-weight: 800; }
-    .brand-sub { color: var(--muted); font-size: 11px; margin-top: 1px; }
-    .online { display: flex; align-items: center; gap: 7px; color: #d8fceb; font-size: 12px; font-weight: 600; padding: 9px 12px; border: 1px solid rgba(40,209,124,.28); border-radius: 999px; background: rgba(7,17,31,.68); }
-    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(40,209,124,.14); }
-    .center { position: fixed; inset: 0; z-index: 3; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(70px, calc(env(safe-area-inset-top) + 45px)) 20px max(145px, calc(env(safe-area-inset-bottom) + 120px)); }
-    .scan-heading { text-align: center; margin-bottom: 28px; text-shadow: 0 2px 15px #000; }
-    .scan-heading h1 { font-family: "Plus Jakarta Sans"; font-size: clamp(22px, 5vw, 30px); letter-spacing: -.8px; }
-    .scan-heading p { margin-top: 8px; color: #d0dae6; font-size: 13px; }
-    .scan-box { position: relative; width: min(76vw, 290px); aspect-ratio: 1; border-radius: 24px; box-shadow: 0 0 0 999px rgba(2,8,15,.54), 0 0 45px rgba(88,213,255,.14); }
-    .scan-box::before { content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: linear-gradient(90deg, transparent, var(--cyan), transparent); box-shadow: 0 0 12px var(--cyan); animation: scan 2.4s ease-in-out infinite; }
-    .corner { position: absolute; width: 42px; height: 42px; border-color: var(--cyan); border-style: solid; filter: drop-shadow(0 0 6px rgba(88,213,255,.5)); }
-    .tl { top: 0; left: 0; border-width: 4px 0 0 4px; border-radius: 18px 0 0 0; }
-    .tr { top: 0; right: 0; border-width: 4px 4px 0 0; border-radius: 0 18px 0 0; }
-    .bl { bottom: 0; left: 0; border-width: 0 0 4px 4px; border-radius: 0 0 0 18px; }
-    .br { bottom: 0; right: 0; border-width: 0 4px 4px 0; border-radius: 0 0 18px 0; }
-    .scan-hint { margin-top: 28px; color: #e1e8f1; font-size: 13px; text-align: center; text-shadow: 0 2px 10px #000; }
-    .bottom-controls { position: fixed; z-index: 4; bottom: 0; left: 0; right: 0; padding: 20px max(22px, env(safe-area-inset-right)) max(24px, calc(env(safe-area-inset-bottom) + 10px)) max(22px, env(safe-area-inset-left)); background: linear-gradient(transparent, rgba(4,11,20,.95) 28%); }
-    .control-row { display: flex; justify-content: center; gap: 12px; }
-    .control { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; color: #e8f0f9; background: rgba(10,25,43,.88); border: 1px solid var(--line); border-radius: 13px; font-size: 13px; font-weight: 600; backdrop-filter: blur(14px); transition: .2s; }
-    .control:hover { border-color: rgba(88,213,255,.5); transform: translateY(-1px); }
-    .menu-btn { position: fixed; top: max(78px, calc(env(safe-area-inset-top) + 62px)); left: 22px; z-index: 5; display: grid; place-items: center; width: 42px; height: 42px; color: white; border: 1px solid var(--line); border-radius: 12px; background: rgba(7,17,31,.7); backdrop-filter: blur(12px); }
-    .drawer-overlay { position: fixed; inset: 0; z-index: 8; visibility: hidden; background: rgba(0,0,0,.45); opacity: 0; transition: .25s; }
-    .drawer-overlay.open { visibility: visible; opacity: 1; }
-    .drawer { position: fixed; top: 0; bottom: 0; left: 0; z-index: 9; width: min(86vw, 360px); padding: max(28px, env(safe-area-inset-top)) 24px 26px; background: var(--navy-2); border-right: 1px solid var(--line); transform: translateX(-105%); transition: transform .3s cubic-bezier(.2,.8,.2,1); box-shadow: 12px 0 40px rgba(0,0,0,.35); }
-    .drawer.open { transform: translateX(0); }
-    .drawer-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 34px; }
-    .drawer h2 { font-family: "Plus Jakarta Sans"; font-size: 18px; }
-    .icon-btn { display: grid; place-items: center; width: 38px; height: 38px; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; background: transparent; }
-    .section-label { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 1.5px; font-weight: 700; margin: 22px 0 10px; }
-    .manual-box { padding: 15px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 15px; }
-    .manual-box p { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 12px; }
-    .manual-box input { width: 100%; padding: 12px; color: white; outline: none; border: 1px solid #2a405a; border-radius: 10px; background: #091728; font-size: 13px; }
-    .manual-box input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(79,140,255,.13); }
-    .primary { width: 100%; margin-top: 10px; padding: 12px; color: white; border: 0; border-radius: 10px; background: linear-gradient(135deg, #4f8cff, #6b62f8); font-weight: 700; }
-    .drawer-action { display: flex; align-items: center; width: 100%; gap: 12px; padding: 13px 0; color: #e5edf6; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; font-weight: 600; font-size: 13px; }
-    .drawer-action svg { color: var(--cyan); }
-    .result { position: fixed; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); z-index: 7; display: flex; align-items: center; gap: 13px; width: min(calc(100% - 32px), 410px); padding: 15px; color: #102033; border-radius: 17px; background: #f8fbff; box-shadow: 0 15px 50px rgba(0,0,0,.45); transform: translate(-50%, calc(100% + 50px)); transition: .4s cubic-bezier(.2,.9,.25,1.2); }
-    .result.show { transform: translate(-50%, 0); }
-    .result.success { border-left: 5px solid var(--green); } .result.warning { border-left: 5px solid var(--amber); } .result.error { border-left: 5px solid var(--red); }
-    .result-icon { display: grid; place-items: center; flex: 0 0 43px; width: 43px; height: 43px; color: white; border-radius: 13px; background: var(--green); }
-    .warning .result-icon { background: var(--amber); } .error .result-icon { background: var(--red); } .loading .result-icon { background: var(--blue); }
-    .result h3 { font: 700 15px "Plus Jakarta Sans"; } .result p { margin-top: 3px; color: #536273; font-size: 12px; line-height: 1.4; }
-    .close-result { margin-left: auto; color: #8c9aab; border: 0; background: none; }
-    .hidden { display: none; }
-    .zoom-badge { display: flex; align-items: center; gap: 6px; position: fixed; right: max(22px, env(safe-area-inset-right)); top: max(78px, calc(env(safe-area-inset-top) + 62px)); z-index: 4; padding: 8px 11px; color: #d7f8ff; border: 1px solid rgba(88,213,255,.24); border-radius: 999px; background: rgba(7,17,31,.64); backdrop-filter: blur(12px); font-size: 11px; font-weight: 700; opacity: 0; transform: translateY(-5px); transition: .3s; }
-    .zoom-badge.active { opacity: 1; transform: translateY(0); }
-    .zoom-badge svg { color: var(--cyan); }
-    @keyframes scan { 0%,100% { transform: translateY(-125px); opacity: .4; } 50% { transform: translateY(125px); opacity: 1; } }
-    @media (min-width: 600px) { .bottom-controls { left: 50%; right: auto; width: 500px; transform: translateX(-50%); } }
-  </style>
-</head>
-<body>
-  <div id="reader"></div><div class="camera-wash"></div>
-  <header class="topbar">
-    <div class="brand"><div class="brand-mark"><i data-lucide="scan-line" width="21"></i></div><div><div class="brand-name">GateScan</div><div class="brand-sub">Scanner tiket acara</div></div></div>
-    <div class="online"><span class="dot"></span> Sistem aktif</div>
-  </header>
-  <button class="menu-btn" aria-label="Buka menu" onclick="toggleMenu()"><i data-lucide="menu" width="20"></i></button>
-  <div id="zoomBadge" class="zoom-badge"><i data-lucide="scan-focus" width="14"></i><span>Auto zoom aktif</span></div>
-  <main class="center">
-    <div class="scan-heading"><h1>Scan tiket masuk</h1><p>Verifikasi tiket dengan cepat dan aman</p></div>
-    <div class="scan-box" aria-label="Area pemindaian QR"><span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span></div>
-    <p class="scan-hint">Posisikan QR code di dalam kotak</p>
-  </main>
-  <div class="bottom-controls"><div class="control-row">
-    <button class="control" onclick="toggleMenu()"><i data-lucide="keyboard" width="17"></i> Input manual</button>
-    <button class="control" onclick="gantiKamera()"><i data-lucide="switch-camera" width="17"></i> Ganti kamera</button>
-  </div></div>
-  <div id="overlay" class="drawer-overlay" onclick="toggleMenu()"></div>
-  <aside id="drawer" class="drawer">
-    <div class="drawer-head"><div><div class="brand-sub">PANEL PANITIA</div><h2>Kontrol scanner</h2></div><button class="icon-btn" onclick="toggleMenu()" aria-label="Tutup"><i data-lucide="x" width="18"></i></button></div>
-    <div class="section-label">Verifikasi alternatif</div>
-    <div class="manual-box"><p>Gunakan input manual jika QR code sulit dipindai atau kamera bermasalah.</p><input id="manualId" type="text" placeholder="Contoh: TIKET-X-XXXX" autocomplete="off"><button class="primary" onclick="kirimManual()"><i data-lucide="check-circle-2" width="16" style="vertical-align:-3px"></i> Proses tiket</button></div>
-    <div class="section-label">Perangkat</div>
-    <button class="drawer-action" onclick="gantiKamera()"><i data-lucide="switch-camera" width="18"></i> Ganti kamera perangkat</button>
-    <button class="drawer-action" onclick="toggleMenu()"><i data-lucide="scan-line" width="18"></i> Kembali ke pemindaian</button>
-  </aside>
-  <section id="resultSheet" class="result" role="status">
-    <div id="sheetIcon" class="result-icon"></div><div><h3 id="sheetTitle">Memproses tiket</h3><p id="sheetDesc">Menghubungi server...</p></div>
-    <button class="close-result" onclick="tutupSheet()" aria-label="Tutup hasil"><i data-lucide="x" width="18"></i></button>
-  </section>
-  <script>
-    lucide.createIcons();
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAvT3N-lnddFImO2kD5mLLP0zXXX0FI7AtZrV7zk1tboLSC6Cv2K-wA617uxd3MRqJ/exec";
-    let html5QrCode, isScanning = true, isFrontCamera = false, autoCloseTimer, audioCtx;
-    function initAudio() { if (!audioCtx) { const C = window.AudioContext || window.webkitAudioContext; if (C) audioCtx = new C(); } if (audioCtx?.state === "suspended") audioCtx.resume(); }
-    document.body.addEventListener("touchstart", initAudio, { once: true }); document.body.addEventListener("click", initAudio, { once: true });
-    function feedback(status) {
-      navigator.vibrate?.(status === "sukses" ? 100 : [220, 120, 220]);
-      try { initAudio(); if (!audioCtx) return; const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = status === "sukses" ? "sine" : "square"; o.frequency.value = status === "sukses" ? 880 : 180; g.gain.setValueAtTime(.25, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.01, audioCtx.currentTime + .28); o.start(); o.stop(audioCtx.currentTime + .3); } catch(e) {}
-    }
-    window.addEventListener("load", () => { html5QrCode = new Html5Qrcode("reader"); startCamera(); });
-    function startCamera() {
-      html5QrCode.start({ facingMode: isFrontCamera ? "user" : "environment" }, { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.777 }, text => { if (isScanning) { isScanning = false; prosesDataTiket(text); } }).then(aktifkanAutoZoom).catch(() => tampilkanSheet("gagal", "Kamera tidak dapat diakses. Periksa izin kamera browser."));
-    }
-    function aktifkanAutoZoom() {
-      const video = document.querySelector("#reader video"), track = video?.srcObject?.getVideoTracks?.()[0];
-      if (!track || isFrontCamera) return;
-      const capability = track.getCapabilities?.(), zoom = capability?.zoom;
-      if (!zoom) return;
-      const target = Math.min(zoom.max, Math.max(zoom.min, zoom.min + (zoom.max - zoom.min) * .22));
-      track.applyConstraints({ advanced: [{ zoom: target }] }).then(() => {
-        const badge = document.getElementById("zoomBadge");
-        badge.querySelector("span").textContent = `Auto zoom ${target.toFixed(1)}×`;
-        badge.classList.add("active");
-      }).catch(() => {});
-    }
-    function gantiKamera() { isFrontCamera = !isFrontCamera; document.getElementById("zoomBadge").classList.remove("active"); html5QrCode.stop().then(startCamera).catch(startCamera); toggleMenu(false); }
+    function gantiKamera() { isFrontCamera = !isFrontCamera; torchOn = false; activeTrack = null; document.getElementById("torchButton").classList.remove("torch-on"); document.getElementById("zoomBadge").classList.remove("active"); html5QrCode.stop().then(startCamera).catch(startCamera); toggleMenu(false); }
     function toggleMenu(force) { const open = force === undefined ? !document.getElementById("drawer").classList.contains("open") : force; document.getElementById("drawer").classList.toggle("open", open); document.getElementById("overlay").classList.toggle("open", open); }
     function kirimManual() { const input = document.getElementById("manualId"), id = input.value.trim(); if (!id) { input.focus(); return; } isScanning = false; toggleMenu(false); prosesDataTiket(id); }
     function prosesDataTiket(idTiket) {
