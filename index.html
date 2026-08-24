@@ -80,7 +80,8 @@
     .result h3 { font: 700 15px "Plus Jakarta Sans"; } .result p { margin-top: 3px; color: #cbd9e8; font-size: 12px; line-height: 1.4; }
     .close-result { margin-left: auto; color: #8c9aab; border: 0; background: none; }
     .hidden { display: none; }
-    .zoom-badge { display: flex; align-items: center; gap: 6px; position: fixed; right: max(22px, env(safe-area-inset-right)); top: max(78px, calc(env(safe-area-inset-top) + 62px)); z-index: 4; padding: 8px 11px; color: #d7f8ff; border: 1px solid rgba(88,213,255,.24); border-radius: 999px; background: rgba(7,17,31,.64); backdrop-filter: blur(12px); font-size: 11px; font-weight: 700; opacity: 0; transform: translateY(-5px); transition: .3s; }
+    /* DIUBAH: Menambahkan display none !important agar tidak tampil sama sekali */
+    .zoom-badge { display: none !important; align-items: center; gap: 6px; position: fixed; right: max(22px, env(safe-area-inset-right)); top: max(78px, calc(env(safe-area-inset-top) + 62px)); z-index: 4; padding: 8px 11px; color: #d7f8ff; border: 1px solid rgba(88,213,255,.24); border-radius: 999px; background: rgba(7,17,31,.64); backdrop-filter: blur(12px); font-size: 11px; font-weight: 700; opacity: 0; transform: translateY(-5px); transition: .3s; }
     .zoom-badge.active { opacity: 1; transform: translateY(0); }
     .zoom-badge svg { color: var(--cyan); }
     .torch-on { color: #ffe5a4 !important; border-color: rgba(255,184,77,.55) !important; background: rgba(91,58,17,.7) !important; }
@@ -106,11 +107,15 @@
     <div class="scan-box" aria-label="Area pemindaian QR"><span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span></div>
     <p class="scan-hint">Posisikan QR code di dalam kotak</p>
   </main>
-  <div class="bottom-controls"><div class="control-row">
-    <button class="control" onclick="toggleMenu()"><i data-lucide="keyboard" width="17"></i> Input manual</button>
-    <button id="torchButton" class="control" onclick="toggleTorch()" aria-label="Nyalakan senter"><i data-lucide="flashlight" width="17"></i> Senter</button>
-    <button class="control" onclick="gantiKamera()"><i data-lucide="switch-camera" width="17"></i> Ganti kamera</button>
-  </div></div>
+  <div class="bottom-controls">
+    <div class="control-row">
+      <button class="control" onclick="toggleMenu()"><i data-lucide="keyboard" width="17"></i> Input manual</button>
+      <button id="torchButton" class="control" onclick="toggleTorch()" aria-label="Nyalakan senter"><i data-lucide="flashlight" width="17"></i> Senter</button>
+      <button class="control" onclick="gantiKamera()"><i data-lucide="switch-camera" width="17"></i> Ganti kamera</button>
+    </div>
+    <!-- DIUBAH: Menambahkan teks Copyright LPM JUSTISSICA -->
+    <div style="text-align: center; font-size: 11px; color: rgba(255, 255, 255, 0.4); margin-top: 15px; font-weight: 500;">&copy; 2026 All Rights Reserved LPM JUSTISSICA</div>
+  </div>
   <div id="overlay" class="drawer-overlay" onclick="toggleMenu()"></div>
   <aside id="drawer" class="drawer">
     <div class="drawer-head"><div><div class="brand-sub">PANEL PANITIA</div><h2>Kontrol scanner</h2></div><button class="icon-btn" onclick="toggleMenu()" aria-label="Tutup"><i data-lucide="x" width="18"></i></button></div>
@@ -132,8 +137,6 @@
     document.body.addEventListener("touchstart", initAudio, { once: true }); document.body.addEventListener("click", initAudio, { once: true });
     function feedback(status) {
       const berhasil = status === "sukses";
-      // Safari iPhone mendukung getaran hanya pada sebagian browser/perangkat;
-      // pada perangkat yang mendukung, kegagalan diberi pola lebih tegas.
       if (navigator.vibrate) navigator.vibrate(berhasil ? 100 : [300, 130, 300, 130, 300]);
       try { initAudio(); if (!audioCtx) return; const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = status === "sukses" ? "sine" : "square"; o.frequency.value = status === "sukses" ? 880 : 180; g.gain.setValueAtTime(.25, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.01, audioCtx.currentTime + .28); o.start(); o.stop(audioCtx.currentTime + .3); } catch(e) {}
     }
@@ -166,7 +169,6 @@
           setZoom(currentZoom + Math.max((max - min) / 8, .15) * direction);
         }, 1800);
       };
-      // Browser yang mendukung BarcodeDetector akan menyesuaikan zoom berdasarkan ukuran QR.
       if ("BarcodeDetector" in window) {
         try {
           const detector = new BarcodeDetector({ formats: ["qr_code"] });
@@ -185,7 +187,6 @@
           return;
         } catch (e) {}
       }
-      // Fallback untuk Safari/browser yang belum memiliki BarcodeDetector.
       sweep();
     }
     function hentikanAutoZoom() {
