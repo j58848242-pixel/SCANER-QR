@@ -2,336 +2,465 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Scanner Panitia Acara</title>
-  
-  <!-- Library QR Code -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <title>GateScan — Scanner Tiket</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <!-- Library Icon Lucide -->
   <script src="https://unpkg.com/lucide@latest"></script>
-
   <style>
-    /* RESET & DASAR */
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
-    
-    html, body { 
-      width: 100%; height: 100%; 
-      background-color: #000; 
-      overflow: hidden; 
-      position: fixed; 
-      color: white; 
+    :root {
+      --navy: #07111f; --navy-2: #0d1b2e; --line: rgba(255,255,255,.12);
+      --muted: #9aabc0; --white: #f8fbff; --blue: #4f8cff;
+      --cyan: #58d5ff; --green: #28d17c; --red: #ff5570; --amber: #ffb84d;
     }
-
-    /* AREA KAMERA FULL SCREEN */
-    #reader {
-      position: absolute;
-      top: 0; left: 0; 
-      width: 100%; height: 100%;
-      z-index: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    
-    #reader video {
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: cover !important; 
-    }
-
-    #qr-shaded-region, #reader canvas {
-      display: none !important;
-    }
-
-    /* KOTAK SCANNER & SIKU-SIKU */
-    .scan-area {
-      position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
-      width: 260px; height: 260px;
-      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.6);
-      border-radius: 15px; z-index: 3;
-      pointer-events: none;
-    }
-    .corner { position: absolute; width: 40px; height: 40px; border-color: #fff; border-style: solid; }
-    .tl { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-top-left-radius: 15px; }
-    .tr { top: -2px; right: -2px; border-width: 4px 4px 0 0; border-top-right-radius: 15px; }
-    .bl { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; border-bottom-left-radius: 15px; }
-    .br { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-bottom-right-radius: 15px; }
-    
-    .instruction { 
-      position: absolute; top: calc(45% + 160px); left: 50%; transform: translateX(-50%); 
-      text-align: center; font-size: 15px; letter-spacing: 0.5px; z-index: 3; width: 100%; 
-      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-      pointer-events: none;
-    }
-
-    /* TOMBOL HAMBURGER */
-    .menu-btn {
-      position: absolute; top: 25px; left: 20px; z-index: 10;
-      background: rgba(0,0,0,0.5); border: none; color: white; 
-      cursor: pointer; padding: 10px; border-radius: 8px;
-      backdrop-filter: blur(5px);
-    }
-
-    /* SIDEBAR (MENU TERSEMBUNYI) */
-    .sidebar {
-      position: absolute; top: 0; left: -100%; width: 280px; height: 100%;
-      background: #111827; z-index: 20; transition: 0.3s ease-in-out;
-      padding: 30px 20px; box-shadow: 5px 0 15px rgba(0,0,0,0.5);
-    }
-    .sidebar.active { left: 0; }
-    .sidebar h3 { margin-bottom: 20px; font-size: 18px; color: #3b82f6; border-bottom: 1px solid #374151; padding-bottom: 10px; }
-    .sidebar label { font-size: 12px; color: #9ca3af; margin-bottom: 5px; display: block; }
-    .sidebar input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #374151; background: #1f2937; color: white; margin-bottom: 15px; }
-    .sidebar button { width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-    .sidebar button.close-menu { background: #ef4444; margin-top: 20px; }
-
-    /* POP-UP HASIL (BOTTOM SHEET) */
-    .bottom-sheet {
-      position: absolute; bottom: -150%; left: 50%; transform: translateX(-50%);
-      width: 90%; max-width: 400px; background: white; border-radius: 16px;
-      padding: 20px; z-index: 30; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      color: #1f2937; display: flex; gap: 15px; align-items: flex-start;
-      box-shadow: 0 -10px 40px rgba(0,0,0,0.4);
-    }
-    .bottom-sheet.show { bottom: 30px; }
-    
-    .bottom-sheet.sukses { border-bottom: 5px solid #22c55e; }
-    .bottom-sheet.gagal { border-bottom: 5px solid #ef4444; }
-    .bottom-sheet.peringatan { border-bottom: 5px solid #f59e0b; }
-
-    .icon-circle { width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
-    .sukses .icon-circle { background: #22c55e; color: white; }
-    .gagal .icon-circle { background: #ef4444; color: white; }
-    .peringatan .icon-circle { background: #f59e0b; color: white; }
-
-    .sheet-content { flex: 1; }
-    .sheet-content h4 { font-size: 18px; margin-bottom: 4px; }
-    .sheet-content p { font-size: 13px; color: #4b5563; line-height: 1.4; }
-    
-    .close-sheet { background: none; border: none; color: #9ca3af; cursor: pointer; padding: 5px; }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { width: 100%; min-height: 100%; height: 100%; background: var(--navy); color: var(--white); font-family: "DM Sans", sans-serif; }
+    body { overflow: hidden; position: fixed; inset: 0; min-height: 100dvh; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    #reader { position: fixed; inset: 0; z-index: 0; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; background: #050b13; }
+    #reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; filter: saturate(.85) contrast(1.04); }
+    #reader canvas, #qr-shaded-region { display: none !important; }
+    .camera-wash { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(3,10,19,.84) 0%, rgba(3,10,19,.05) 36%, rgba(3,10,19,.1) 65%, rgba(3,10,19,.92) 100%); }
+    .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; padding: max(22px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) 18px max(22px, env(safe-area-inset-left)); }
+    .brand { display: flex; align-items: center; gap: 11px; }
+    .brand-mark { display: grid; place-items: center; width: 39px; height: 39px; border: 1px solid rgba(88,213,255,.45); border-radius: 12px; color: var(--cyan); background: rgba(7,17,31,.72); box-shadow: 0 0 24px rgba(79,140,255,.18); }
+    .brand-name { font-family: "Plus Jakarta Sans"; font-size: 16px; letter-spacing: -.4px; font-weight: 800; }
+    .brand-sub { color: var(--muted); font-size: 11px; margin-top: 1px; }
+    .online { display: flex; align-items: center; gap: 7px; color: #d8fceb; font-size: 12px; font-weight: 600; padding: 9px 12px; border: 1px solid rgba(40,209,124,.28); border-radius: 999px; background: rgba(7,17,31,.68); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(40,209,124,.14); }
+    .center { position: fixed; inset: 0; z-index: 3; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(70px, calc(env(safe-area-inset-top) + 45px)) 20px max(145px, calc(env(safe-area-inset-bottom) + 120px)); }
+    .scan-heading { text-align: center; margin-bottom: 28px; text-shadow: 0 2px 15px #000; }
+    .scan-heading h1 { font-family: "Plus Jakarta Sans"; font-size: clamp(22px, 5vw, 30px); letter-spacing: -.8px; }
+    .scan-heading p { margin-top: 8px; color: #d0dae6; font-size: 13px; }
+    .scan-box { position: relative; width: min(76vw, 290px); aspect-ratio: 1; border-radius: 24px; box-shadow: 0 0 0 999px rgba(2,8,15,.54), 0 0 45px rgba(88,213,255,.14); }
+    .scan-box::before { content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: linear-gradient(90deg, transparent, var(--cyan), transparent); box-shadow: 0 0 12px var(--cyan); animation: scan 2.4s ease-in-out infinite; }
+    .corner { position: absolute; width: 42px; height: 42px; border-color: var(--cyan); border-style: solid; filter: drop-shadow(0 0 6px rgba(88,213,255,.5)); }
+    .tl { top: 0; left: 0; border-width: 4px 0 0 4px; border-radius: 18px 0 0 0; }
+    .tr { top: 0; right: 0; border-width: 4px 4px 0 0; border-radius: 0 18px 0 0; }
+    .bl { bottom: 0; left: 0; border-width: 0 0 4px 4px; border-radius: 0 0 0 18px; }
+    .br { bottom: 0; right: 0; border-width: 0 4px 4px 0; border-radius: 0 0 18px 0; }
+    .scan-hint { margin-top: 28px; color: #e1e8f1; font-size: 13px; text-align: center; text-shadow: 0 2px 10px #000; }
+    .bottom-controls { position: fixed; z-index: 4; bottom: 0; left: 0; right: 0; padding: 20px max(22px, env(safe-area-inset-right)) max(24px, calc(env(safe-area-inset-bottom) + 10px)) max(22px, env(safe-area-inset-left)); background: linear-gradient(transparent, rgba(4,11,20,.95) 28%); }
+    .control-row { display: flex; justify-content: center; gap: 12px; }
+    .control { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; color: #e8f0f9; background: rgba(10,25,43,.88); border: 1px solid var(--line); border-radius: 13px; font-size: 13px; font-weight: 600; backdrop-filter: blur(14px); transition: .2s; }
+    .control:hover { border-color: rgba(88,213,255,.5); transform: translateY(-1px); }
+    .menu-btn { position: fixed; top: max(78px, calc(env(safe-area-inset-top) + 62px)); left: 22px; z-index: 5; display: grid; place-items: center; width: 42px; height: 42px; color: white; border: 1px solid var(--line); border-radius: 12px; background: rgba(7,17,31,.7); backdrop-filter: blur(12px); }
+    .drawer-overlay { position: fixed; inset: 0; z-index: 8; visibility: hidden; background: rgba(0,0,0,.45); opacity: 0; transition: .25s; }
+    .drawer-overlay.open { visibility: visible; opacity: 1; }
+    .drawer { position: fixed; top: 0; bottom: 0; left: 0; z-index: 9; width: min(86vw, 360px); padding: max(28px, env(safe-area-inset-top)) 24px 26px; background: var(--navy-2); border-right: 1px solid var(--line); transform: translateX(-105%); transition: transform .3s cubic-bezier(.2,.8,.2,1); box-shadow: 12px 0 40px rgba(0,0,0,.35); }
+    .drawer.open { transform: translateX(0); }
+    .drawer-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 34px; }
+    .drawer h2 { font-family: "Plus Jakarta Sans"; font-size: 18px; }
+    .icon-btn { display: grid; place-items: center; width: 38px; height: 38px; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; background: transparent; }
+    .section-label { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 1.5px; font-weight: 700; margin: 22px 0 10px; }
+    .manual-box { padding: 15px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 15px; }
+    .manual-box p { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 12px; }
+    .manual-box input { width: 100%; padding: 12px; color: white; outline: none; border: 1px solid #2a405a; border-radius: 10px; background: #091728; font-size: 13px; }
+    .manual-box input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(79,140,255,.13); }
+    .primary { width: 100%; margin-top: 10px; padding: 12px; color: white; border: 0; border-radius: 10px; background: linear-gradient(135deg, #4f8cff, #6b62f8); font-weight: 700; }
+    .drawer-action { display: flex; align-items: center; width: 100%; gap: 12px; padding: 13px 0; color: #e5edf6; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; font-weight: 600; font-size: 13px; }
+    .drawer-action svg { color: var(--cyan); }
+    .result { position: fixed; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); z-index: 7; display: flex; align-items: center; gap: 13px; width: min(calc(100% - 32px), 410px); padding: 15px; color: #102033; border-radius: 17px; background: #f8fbff; box-shadow: 0 15px 50px rgba(0,0,0,.45); transform: translate(-50%, calc(100% + 50px)); transition: .4s cubic-bezier(.2,.9,.25,1.2); }
+    .result.show { transform: translate(-50%, 0); }
+    .result.success { border-left: 5px solid var(--green); } .result.warning { border-left: 5px solid var(--amber); } .result.error { border-left: 5px solid var(--red); }
+    .result-icon { display: grid; place-items: center; flex: 0 0 43px; width: 43px; height: 43px; color: white; border-radius: 13px; background: var(--green); }
+    .warning .result-icon { background: var(--amber); } .error .result-icon { background: var(--red); } .loading .result-icon { background: var(--blue); }
+    .result h3 { font: 700 15px "Plus Jakarta Sans"; } .result p { margin-top: 3px; color: #536273; font-size: 12px; line-height: 1.4; }
+    .close-result { margin-left: auto; color: #8c9aab; border: 0; background: none; }
+    .hidden { display: none; }
+    .zoom-badge { display: flex; align-items: center; gap: 6px; position: fixed; right: max(22px, env(safe-area-inset-right)); top: max(78px, calc(env(safe-area-inset-top) + 62px)); z-index: 4; padding: 8px 11px; color: #d7f8ff; border: 1px solid rgba(88,213,255,.24); border-radius: 999px; background: rgba(7,17,31,.64); backdrop-filter: blur(12px); font-size: 11px; font-weight: 700; opacity: 0; transform: translateY(-5px); transition: .3s; }
+    .zoom-badge.active { opacity: 1; transform: translateY(0); }
+    .zoom-badge svg { color: var(--cyan); }
+    @keyframes scan { 0%,100% { transform: translateY(-125px); opacity: .4; } 50% { transform: translateY(125px); opacity: 1; } }
+    @media (min-width: 600px) { .bottom-controls { left: 50%; right: auto; width: 500px; transform: translateX(-50%); } }
   </style>
 </head>
 <body>
-
-  <!-- TOMBOL MENU HAMBURGER -->
-  <button class="menu-btn" onclick="toggleMenu()">
-    <i data-lucide="menu" style="width: 24px; height: 24px;"></i>
-  </button>
-
-  <!-- BACKGROUND KAMERA -->
-  <div id="reader"></div>
-
-  <!-- UI SCANNER KITA -->
-  <div class="scan-area">
-    <div class="corner tl"></div>
-    <div class="corner tr"></div>
-    <div class="corner bl"></div>
-    <div class="corner br"></div>
-  </div>
-  <p class="instruction">Arahkan kamera ke QR code tiket</p>
-
-  <!-- SIDEBAR MENU -->
-  <div id="sidebar" class="sidebar">
-    <h3>Pengaturan Panitia</h3>
-    <label>Input Manual (Jika Kamera Rusak)</label>
-    <input type="text" id="manualId" placeholder="TIKET-X-XXXX">
-    <button onclick="kirimManual()">Proses Tiket</button>
-    <hr style="border-color: #374151; margin: 20px 0;">
-    <label>Kamera</label>
-    <button onclick="gantiKamera()" style="background: #4b5563;">🔄 Ganti Kamera</button>
-    <button class="close-menu" onclick="toggleMenu()">Tutup Menu</button>
-  </div>
-
-  <!-- POP-UP HASIL SCAN -->
-  <div id="resultSheet" class="bottom-sheet">
-    <div id="sheetIcon" class="icon-circle"></div>
-    <div class="sheet-content">
-      <h4 id="sheetTitle">Berhasil!</h4>
-      <p id="sheetDesc">Memproses data...</p>
-    </div>
-    <button class="close-sheet" onclick="tutupSheet()">
-      <i data-lucide="x" style="width: 20px; height: 20px;"></i>
-    </button>
-  </div>
-
-  <!-- SCRIPT LOGIKA PROGRAM -->
+  <div id="reader"></div><div class="camera-wash"></div>
+  <header class="topbar">
+    <div class="brand"><div class="brand-mark"><i data-lucide="scan-line" width="21"></i></div><div><div class="brand-name">GateScan</div><div class="brand-sub">Scanner tiket acara</div></div></div>
+    <div class="online"><span class="dot"></span> Sistem aktif</div>
+  </header>
+  <button class="menu-btn" aria-label="Buka menu" onclick="toggleMenu()"><i data-lucide="menu" width="20"></i></button>
+  <div id="zoomBadge" class="zoom-badge"><i data-lucide="scan-focus" width="14"></i><span>Auto zoom aktif</span></div>
+  <main class="center">
+    <div class="scan-heading"><h1>Scan tiket masuk</h1><p>Verifikasi tiket dengan cepat dan aman</p></div>
+    <div class="scan-box" aria-label="Area pemindaian QR"><span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span></div>
+    <p class="scan-hint">Posisikan QR code di dalam kotak</p>
+  </main>
+  <div class="bottom-controls"><div class="control-row">
+    <button class="control" onclick="toggleMenu()"><i data-lucide="keyboard" width="17"></i> Input manual</button>
+    <button class="control" onclick="gantiKamera()"><i data-lucide="switch-camera" width="17"></i> Ganti kamera</button>
+  </div></div>
+  <div id="overlay" class="drawer-overlay" onclick="toggleMenu()"></div>
+  <aside id="drawer" class="drawer">
+    <div class="drawer-head"><div><div class="brand-sub">PANEL PANITIA</div><h2>Kontrol scanner</h2></div><button class="icon-btn" onclick="toggleMenu()" aria-label="Tutup"><i data-lucide="x" width="18"></i></button></div>
+    <div class="section-label">Verifikasi alternatif</div>
+    <div class="manual-box"><p>Gunakan input manual jika QR code sulit dipindai atau kamera bermasalah.</p><input id="manualId" type="text" placeholder="Contoh: TIKET-X-XXXX" autocomplete="off"><button class="primary" onclick="kirimManual()"><i data-lucide="check-circle-2" width="16" style="vertical-align:-3px"></i> Proses tiket</button></div>
+    <div class="section-label">Perangkat</div>
+    <button class="drawer-action" onclick="gantiKamera()"><i data-lucide="switch-camera" width="18"></i> Ganti kamera perangkat</button>
+    <button class="drawer-action" onclick="toggleMenu()"><i data-lucide="scan-line" width="18"></i> Kembali ke pemindaian</button>
+  </aside>
+  <section id="resultSheet" class="result" role="status">
+    <div id="sheetIcon" class="result-icon"></div><div><h3 id="sheetTitle">Memproses tiket</h3><p id="sheetDesc">Menghubungi server...</p></div>
+    <button class="close-result" onclick="tutupSheet()" aria-label="Tutup hasil"><i data-lucide="x" width="18"></i></button>
+  </section>
   <script>
     lucide.createIcons();
-
-    // =========================================================
-    // MASUKKAN URL APPS SCRIPT ANDA DI ANTARA TANDA KUTIP BAWAH INI:
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAvT3N-lnddFImO2kD5mLLP0zXXX0FI7AtZrV7zk1tboLSC6Cv2K-wA617uxd3MRqJ/exec";
-    // =========================================================
-
-    let html5QrCode;
-    let isScanning = true;
-    let isFrontCamera = false;
-    let autoCloseTimer; 
-
-    // --- MESIN SUARA & GETARAN ---
-    let audioCtx;
-    function initAudio() {
-      if (!audioCtx) {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContext();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+    let html5QrCode, isScanning = true, isFrontCamera = false, autoCloseTimer, audioCtx;
+    function initAudio() { if (!audioCtx) { const C = window.AudioContext || window.webkitAudioContext; if (C) audioCtx = new C(); } if (audioCtx?.state === "suspended") audioCtx.resume(); }
+    document.body.addEventListener("touchstart", initAudio, { once: true }); document.body.addEventListener("click", initAudio, { once: true });
+    function feedback(status) {
+      navigator.vibrate?.(status === "sukses" ? 100 : [220, 120, 220]);
+      try { initAudio(); if (!audioCtx) return; const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = status === "sukses" ? "sine" : "square"; o.frequency.value = status === "sukses" ? 880 : 180; g.gain.setValueAtTime(.25, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.01, audioCtx.currentTime + .28); o.start(); o.stop(audioCtx.currentTime + .3); } catch(e) {}
     }
-
-    document.body.addEventListener('touchstart', initAudio, { once: true });
-    document.body.addEventListener('click', initAudio, { once: true });
-
-    function berikanFeedback(status) {
-      if ("vibrate" in navigator) {
-        if (status === "sukses") {
-          navigator.vibrate(100); 
-        } else {
-          navigator.vibrate([300, 150, 300]); 
-        }
-      }
-      try {
-        initAudio();
-        const osc = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        osc.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        if (status === "sukses") {
-          osc.type = "sine";
-          osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
-          gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-          osc.start();
-          osc.stop(audioCtx.currentTime + 0.3);
-        } else {
-          osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-          gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-          osc.start();
-          osc.stop(audioCtx.currentTime + 0.5);
-        }
-      } catch(e) {
-        console.log("Audio tidak didukung.");
-      }
-    }
-
-    // --- KAMERA & SCANNER ---
-    window.onload = () => {
-      html5QrCode = new Html5Qrcode("reader");
-      startCamera();
-    };
-
+    window.addEventListener("load", () => { html5QrCode = new Html5Qrcode("reader"); startCamera(); });
     function startCamera() {
-      const cameraFacing = isFrontCamera ? "user" : "environment";
-      html5QrCode.start(
-        { facingMode: cameraFacing },
-        { fps: 10 }, 
-        (decodedText) => {
-          if (isScanning) {
-            isScanning = false;
-            // PERBAIKAN: Fungsi pause() dihapus total dari sini!
-            // Kamera tetap jalan mulus di background, tapi sistem menolak scan baru berkat variabel isScanning
-            prosesDataTiket(decodedText);
-          }
-        }
-      ).catch(err => {
-        alert("Gagal mengakses kamera. Pastikan browser memiliki izin.");
-      });
+      html5QrCode.start({ facingMode: isFrontCamera ? "user" : "environment" }, { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.777 }, text => { if (isScanning) { isScanning = false; prosesDataTiket(text); } }).then(aktifkanAutoZoom).catch(() => tampilkanSheet("gagal", "Kamera tidak dapat diakses. Periksa izin kamera browser."));
     }
-
-    function gantiKamera() {
-      isFrontCamera = !isFrontCamera;
-      html5QrCode.stop().then(() => {
-        startCamera();
-        toggleMenu(); 
-      });
+    function aktifkanAutoZoom() {
+      const video = document.querySelector("#reader video"), track = video?.srcObject?.getVideoTracks?.()[0];
+      if (!track || isFrontCamera) return;
+      const capability = track.getCapabilities?.(), zoom = capability?.zoom;
+      if (!zoom) return;
+      const target = Math.min(zoom.max, Math.max(zoom.min, zoom.min + (zoom.max - zoom.min) * .22));
+      track.applyConstraints({ advanced: [{ zoom: target }] }).then(() => {
+        const badge = document.getElementById("zoomBadge");
+        badge.querySelector("span").textContent = `Auto zoom ${target.toFixed(1)}×`;
+        badge.classList.add("active");
+      }).catch(() => {});
     }
-
-    function kirimManual() {
-      const id = document.getElementById("manualId").value;
-      if (!id) return;
-      toggleMenu(); 
-      isScanning = false;
-      prosesDataTiket(id);
-    }
-
-    // --- LOGIKA FETCH KE API ---
+    function gantiKamera() { isFrontCamera = !isFrontCamera; document.getElementById("zoomBadge").classList.remove("active"); html5QrCode.stop().then(startCamera).catch(startCamera); toggleMenu(false); }
+    function toggleMenu(force) { const open = force === undefined ? !document.getElementById("drawer").classList.contains("open") : force; document.getElementById("drawer").classList.toggle("open", open); document.getElementById("overlay").classList.toggle("open", open); }
+    function kirimManual() { const input = document.getElementById("manualId"), id = input.value.trim(); if (!id) { input.focus(); return; } isScanning = false; toggleMenu(false); prosesDataTiket(id); }
     function prosesDataTiket(idTiket) {
       tampilkanLoading();
-      fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: "scan", idTiket: idTiket })
-      })
-      .then(response => response.json())
-      .then(data => {
-        tampilkanSheet(data.status, data.pesan);
-      })
-      .catch(error => {
-        tampilkanSheet("gagal", "Koneksi terputus. Pastikan internet panitia stabil.");
-      });
+      fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "scan", idTiket }) })
+        .then(r => r.json()).then(data => tampilkanSheet(data.status, data.pesan)).catch(() => tampilkanSheet("gagal", "Koneksi terputus. Pastikan internet panitia stabil."));
     }
-
-    // --- KONTROL UI ---
-    function toggleMenu() {
-      document.getElementById("sidebar").classList.toggle("active");
-    }
-
-    function tampilkanLoading() {
-      const sheet = document.getElementById("resultSheet");
-      document.getElementById("sheetTitle").innerText = "Memproses...";
-      document.getElementById("sheetDesc").innerText = "Menghubungi server...";
-      document.getElementById("sheetIcon").innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i>';
-      sheet.className = "bottom-sheet show";
-      
-      clearTimeout(autoCloseTimer);
-      lucide.createIcons();
-    }
-
+    function tampilkanLoading() { const s = document.getElementById("resultSheet"); s.className = "result show loading"; document.getElementById("sheetTitle").textContent = "Memproses tiket"; document.getElementById("sheetDesc").textContent = "Menghubungi server..."; document.getElementById("sheetIcon").innerHTML = '<i data-lucide="loader-2" class="spin"></i>'; lucide.createIcons(); clearTimeout(autoCloseTimer); }
     function tampilkanSheet(status, pesan) {
-      const sheet = document.getElementById("resultSheet");
-      const title = document.getElementById("sheetTitle");
-      const desc = document.getElementById("sheetDesc");
-      const icon = document.getElementById("sheetIcon");
-
-      sheet.className = "bottom-sheet show " + status;
-      desc.innerText = pesan;
-
-      if (status === "sukses") {
-        title.innerText = "Berhasil!";
-        icon.innerHTML = '<i data-lucide="check"></i>';
-      } else if (status === "peringatan") {
-        title.innerText = "Sudah Absen";
-        icon.innerHTML = '<i data-lucide="alert-circle"></i>';
-      } else {
-        title.innerText = "Tidak Ditemukan";
-        icon.innerHTML = '<i data-lucide="x"></i>';
-      }
-      
-      lucide.createIcons();
-      berikanFeedback(status); 
-
-      // Timer penutup otomatis (Jantung auto-reset)
-      clearTimeout(autoCloseTimer);
-      autoCloseTimer = setTimeout(() => {
-        tutupSheet();
-      }, 2500);
+      const s = document.getElementById("resultSheet"), map = { sukses: ["success", "Tiket valid", "check"], peringatan: ["warning", "Sudah digunakan", "alert-circle"], gagal: ["error", "Tiket tidak valid", "x-circle"] }, item = map[status] || map.gagal;
+      s.className = "result show " + item[0]; document.getElementById("sheetTitle").textContent = item[1]; document.getElementById("sheetDesc").textContent = pesan || "Tidak ada detail tambahan."; document.getElementById("sheetIcon").innerHTML = `<i data-lucide="${item[2]}" width="21"></i>`; lucide.createIcons(); feedback(status);
+      clearTimeout(autoCloseTimer); autoCloseTimer = setTimeout(tutupSheet, 3000);
     }
-
-    function tutupSheet() {
-      clearTimeout(autoCloseTimer); 
-      
-      document.getElementById("resultSheet").classList.remove("show");
-      document.getElementById("manualId").value = "";
-      
-      // PERBAIKAN: Fungsi resume() dihapus. 
-      // Kita cukup kembalikan nilai isScanning = true agar sistem siap membaca tiket lagi.
-      setTimeout(() => {
-        isScanning = true;
-      }, 500);
-    }
+    function tutupSheet() { clearTimeout(autoCloseTimer); document.getElementById("resultSheet").classList.remove("show"); document.getElementById("manualId").value = ""; setTimeout(() => isScanning = true, 450); }
   </script>
+  <style>.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }</style>
+</body>
+</html><!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <title>GateScan — Scanner Tiket</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --navy: #07111f; --navy-2: #0d1b2e; --line: rgba(255,255,255,.12);
+      --muted: #9aabc0; --white: #f8fbff; --blue: #4f8cff;
+      --cyan: #58d5ff; --green: #28d17c; --red: #ff5570; --amber: #ffb84d;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { width: 100%; min-height: 100%; height: 100%; background: var(--navy); color: var(--white); font-family: "DM Sans", sans-serif; }
+    body { overflow: hidden; position: fixed; inset: 0; min-height: 100dvh; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    #reader { position: fixed; inset: 0; z-index: 0; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; background: #050b13; }
+    #reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; filter: saturate(.85) contrast(1.04); }
+    #reader canvas, #qr-shaded-region { display: none !important; }
+    .camera-wash { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(3,10,19,.84) 0%, rgba(3,10,19,.05) 36%, rgba(3,10,19,.1) 65%, rgba(3,10,19,.92) 100%); }
+    .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; padding: max(22px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) 18px max(22px, env(safe-area-inset-left)); }
+    .brand { display: flex; align-items: center; gap: 11px; }
+    .brand-mark { display: grid; place-items: center; width: 39px; height: 39px; border: 1px solid rgba(88,213,255,.45); border-radius: 12px; color: var(--cyan); background: rgba(7,17,31,.72); box-shadow: 0 0 24px rgba(79,140,255,.18); }
+    .brand-name { font-family: "Plus Jakarta Sans"; font-size: 16px; letter-spacing: -.4px; font-weight: 800; }
+    .brand-sub { color: var(--muted); font-size: 11px; margin-top: 1px; }
+    .online { display: flex; align-items: center; gap: 7px; color: #d8fceb; font-size: 12px; font-weight: 600; padding: 9px 12px; border: 1px solid rgba(40,209,124,.28); border-radius: 999px; background: rgba(7,17,31,.68); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(40,209,124,.14); }
+    .center { position: fixed; inset: 0; z-index: 3; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(70px, calc(env(safe-area-inset-top) + 45px)) 20px max(145px, calc(env(safe-area-inset-bottom) + 120px)); }
+    .scan-heading { text-align: center; margin-bottom: 28px; text-shadow: 0 2px 15px #000; }
+    .scan-heading h1 { font-family: "Plus Jakarta Sans"; font-size: clamp(22px, 5vw, 30px); letter-spacing: -.8px; }
+    .scan-heading p { margin-top: 8px; color: #d0dae6; font-size: 13px; }
+    .scan-box { position: relative; width: min(76vw, 290px); aspect-ratio: 1; border-radius: 24px; box-shadow: 0 0 0 999px rgba(2,8,15,.54), 0 0 45px rgba(88,213,255,.14); }
+    .scan-box::before { content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: linear-gradient(90deg, transparent, var(--cyan), transparent); box-shadow: 0 0 12px var(--cyan); animation: scan 2.4s ease-in-out infinite; }
+    .corner { position: absolute; width: 42px; height: 42px; border-color: var(--cyan); border-style: solid; filter: drop-shadow(0 0 6px rgba(88,213,255,.5)); }
+    .tl { top: 0; left: 0; border-width: 4px 0 0 4px; border-radius: 18px 0 0 0; }
+    .tr { top: 0; right: 0; border-width: 4px 4px 0 0; border-radius: 0 18px 0 0; }
+    .bl { bottom: 0; left: 0; border-width: 0 0 4px 4px; border-radius: 0 0 0 18px; }
+    .br { bottom: 0; right: 0; border-width: 0 4px 4px 0; border-radius: 0 0 18px 0; }
+    .scan-hint { margin-top: 28px; color: #e1e8f1; font-size: 13px; text-align: center; text-shadow: 0 2px 10px #000; }
+    .bottom-controls { position: fixed; z-index: 4; bottom: 0; left: 0; right: 0; padding: 20px max(22px, env(safe-area-inset-right)) max(24px, calc(env(safe-area-inset-bottom) + 10px)) max(22px, env(safe-area-inset-left)); background: linear-gradient(transparent, rgba(4,11,20,.95) 28%); }
+    .control-row { display: flex; justify-content: center; gap: 12px; }
+    .control { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; color: #e8f0f9; background: rgba(10,25,43,.88); border: 1px solid var(--line); border-radius: 13px; font-size: 13px; font-weight: 600; backdrop-filter: blur(14px); transition: .2s; }
+    .control:hover { border-color: rgba(88,213,255,.5); transform: translateY(-1px); }
+    .menu-btn { position: fixed; top: max(78px, calc(env(safe-area-inset-top) + 62px)); left: 22px; z-index: 5; display: grid; place-items: center; width: 42px; height: 42px; color: white; border: 1px solid var(--line); border-radius: 12px; background: rgba(7,17,31,.7); backdrop-filter: blur(12px); }
+    .drawer-overlay { position: fixed; inset: 0; z-index: 8; visibility: hidden; background: rgba(0,0,0,.45); opacity: 0; transition: .25s; }
+    .drawer-overlay.open { visibility: visible; opacity: 1; }
+    .drawer { position: fixed; top: 0; bottom: 0; left: 0; z-index: 9; width: min(86vw, 360px); padding: max(28px, env(safe-area-inset-top)) 24px 26px; background: var(--navy-2); border-right: 1px solid var(--line); transform: translateX(-105%); transition: transform .3s cubic-bezier(.2,.8,.2,1); box-shadow: 12px 0 40px rgba(0,0,0,.35); }
+    .drawer.open { transform: translateX(0); }
+    .drawer-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 34px; }
+    .drawer h2 { font-family: "Plus Jakarta Sans"; font-size: 18px; }
+    .icon-btn { display: grid; place-items: center; width: 38px; height: 38px; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; background: transparent; }
+    .section-label { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 1.5px; font-weight: 700; margin: 22px 0 10px; }
+    .manual-box { padding: 15px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 15px; }
+    .manual-box p { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 12px; }
+    .manual-box input { width: 100%; padding: 12px; color: white; outline: none; border: 1px solid #2a405a; border-radius: 10px; background: #091728; font-size: 13px; }
+    .manual-box input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(79,140,255,.13); }
+    .primary { width: 100%; margin-top: 10px; padding: 12px; color: white; border: 0; border-radius: 10px; background: linear-gradient(135deg, #4f8cff, #6b62f8); font-weight: 700; }
+    .drawer-action { display: flex; align-items: center; width: 100%; gap: 12px; padding: 13px 0; color: #e5edf6; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; font-weight: 600; font-size: 13px; }
+    .drawer-action svg { color: var(--cyan); }
+    .result { position: fixed; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); z-index: 7; display: flex; align-items: center; gap: 13px; width: min(calc(100% - 32px), 410px); padding: 15px; color: #102033; border-radius: 17px; background: #f8fbff; box-shadow: 0 15px 50px rgba(0,0,0,.45); transform: translate(-50%, calc(100% + 50px)); transition: .4s cubic-bezier(.2,.9,.25,1.2); }
+    .result.show { transform: translate(-50%, 0); }
+    .result.success { border-left: 5px solid var(--green); } .result.warning { border-left: 5px solid var(--amber); } .result.error { border-left: 5px solid var(--red); }
+    .result-icon { display: grid; place-items: center; flex: 0 0 43px; width: 43px; height: 43px; color: white; border-radius: 13px; background: var(--green); }
+    .warning .result-icon { background: var(--amber); } .error .result-icon { background: var(--red); } .loading .result-icon { background: var(--blue); }
+    .result h3 { font: 700 15px "Plus Jakarta Sans"; } .result p { margin-top: 3px; color: #536273; font-size: 12px; line-height: 1.4; }
+    .close-result { margin-left: auto; color: #8c9aab; border: 0; background: none; }
+    .hidden { display: none; }
+    .zoom-badge { display: flex; align-items: center; gap: 6px; position: fixed; right: max(22px, env(safe-area-inset-right)); top: max(78px, calc(env(safe-area-inset-top) + 62px)); z-index: 4; padding: 8px 11px; color: #d7f8ff; border: 1px solid rgba(88,213,255,.24); border-radius: 999px; background: rgba(7,17,31,.64); backdrop-filter: blur(12px); font-size: 11px; font-weight: 700; opacity: 0; transform: translateY(-5px); transition: .3s; }
+    .zoom-badge.active { opacity: 1; transform: translateY(0); }
+    .zoom-badge svg { color: var(--cyan); }
+    @keyframes scan { 0%,100% { transform: translateY(-125px); opacity: .4; } 50% { transform: translateY(125px); opacity: 1; } }
+    @media (min-width: 600px) { .bottom-controls { left: 50%; right: auto; width: 500px; transform: translateX(-50%); } }
+  </style>
+</head>
+<body>
+  <div id="reader"></div><div class="camera-wash"></div>
+  <header class="topbar">
+    <div class="brand"><div class="brand-mark"><i data-lucide="scan-line" width="21"></i></div><div><div class="brand-name">GateScan</div><div class="brand-sub">Scanner tiket acara</div></div></div>
+    <div class="online"><span class="dot"></span> Sistem aktif</div>
+  </header>
+  <button class="menu-btn" aria-label="Buka menu" onclick="toggleMenu()"><i data-lucide="menu" width="20"></i></button>
+  <div id="zoomBadge" class="zoom-badge"><i data-lucide="scan-focus" width="14"></i><span>Auto zoom aktif</span></div>
+  <main class="center">
+    <div class="scan-heading"><h1>Scan tiket masuk</h1><p>Verifikasi tiket dengan cepat dan aman</p></div>
+    <div class="scan-box" aria-label="Area pemindaian QR"><span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span></div>
+    <p class="scan-hint">Posisikan QR code di dalam kotak</p>
+  </main>
+  <div class="bottom-controls"><div class="control-row">
+    <button class="control" onclick="toggleMenu()"><i data-lucide="keyboard" width="17"></i> Input manual</button>
+    <button class="control" onclick="gantiKamera()"><i data-lucide="switch-camera" width="17"></i> Ganti kamera</button>
+  </div></div>
+  <div id="overlay" class="drawer-overlay" onclick="toggleMenu()"></div>
+  <aside id="drawer" class="drawer">
+    <div class="drawer-head"><div><div class="brand-sub">PANEL PANITIA</div><h2>Kontrol scanner</h2></div><button class="icon-btn" onclick="toggleMenu()" aria-label="Tutup"><i data-lucide="x" width="18"></i></button></div>
+    <div class="section-label">Verifikasi alternatif</div>
+    <div class="manual-box"><p>Gunakan input manual jika QR code sulit dipindai atau kamera bermasalah.</p><input id="manualId" type="text" placeholder="Contoh: TIKET-X-XXXX" autocomplete="off"><button class="primary" onclick="kirimManual()"><i data-lucide="check-circle-2" width="16" style="vertical-align:-3px"></i> Proses tiket</button></div>
+    <div class="section-label">Perangkat</div>
+    <button class="drawer-action" onclick="gantiKamera()"><i data-lucide="switch-camera" width="18"></i> Ganti kamera perangkat</button>
+    <button class="drawer-action" onclick="toggleMenu()"><i data-lucide="scan-line" width="18"></i> Kembali ke pemindaian</button>
+  </aside>
+  <section id="resultSheet" class="result" role="status">
+    <div id="sheetIcon" class="result-icon"></div><div><h3 id="sheetTitle">Memproses tiket</h3><p id="sheetDesc">Menghubungi server...</p></div>
+    <button class="close-result" onclick="tutupSheet()" aria-label="Tutup hasil"><i data-lucide="x" width="18"></i></button>
+  </section>
+  <script>
+    lucide.createIcons();
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAvT3N-lnddFImO2kD5mLLP0zXXX0FI7AtZrV7zk1tboLSC6Cv2K-wA617uxd3MRqJ/exec";
+    let html5QrCode, isScanning = true, isFrontCamera = false, autoCloseTimer, audioCtx;
+    function initAudio() { if (!audioCtx) { const C = window.AudioContext || window.webkitAudioContext; if (C) audioCtx = new C(); } if (audioCtx?.state === "suspended") audioCtx.resume(); }
+    document.body.addEventListener("touchstart", initAudio, { once: true }); document.body.addEventListener("click", initAudio, { once: true });
+    function feedback(status) {
+      navigator.vibrate?.(status === "sukses" ? 100 : [220, 120, 220]);
+      try { initAudio(); if (!audioCtx) return; const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = status === "sukses" ? "sine" : "square"; o.frequency.value = status === "sukses" ? 880 : 180; g.gain.setValueAtTime(.25, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.01, audioCtx.currentTime + .28); o.start(); o.stop(audioCtx.currentTime + .3); } catch(e) {}
+    }
+    window.addEventListener("load", () => { html5QrCode = new Html5Qrcode("reader"); startCamera(); });
+    function startCamera() {
+      html5QrCode.start({ facingMode: isFrontCamera ? "user" : "environment" }, { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.777 }, text => { if (isScanning) { isScanning = false; prosesDataTiket(text); } }).then(aktifkanAutoZoom).catch(() => tampilkanSheet("gagal", "Kamera tidak dapat diakses. Periksa izin kamera browser."));
+    }
+    function aktifkanAutoZoom() {
+      const video = document.querySelector("#reader video"), track = video?.srcObject?.getVideoTracks?.()[0];
+      if (!track || isFrontCamera) return;
+      const capability = track.getCapabilities?.(), zoom = capability?.zoom;
+      if (!zoom) return;
+      const target = Math.min(zoom.max, Math.max(zoom.min, zoom.min + (zoom.max - zoom.min) * .22));
+      track.applyConstraints({ advanced: [{ zoom: target }] }).then(() => {
+        const badge = document.getElementById("zoomBadge");
+        badge.querySelector("span").textContent = `Auto zoom ${target.toFixed(1)}×`;
+        badge.classList.add("active");
+      }).catch(() => {});
+    }
+    function gantiKamera() { isFrontCamera = !isFrontCamera; document.getElementById("zoomBadge").classList.remove("active"); html5QrCode.stop().then(startCamera).catch(startCamera); toggleMenu(false); }
+    function toggleMenu(force) { const open = force === undefined ? !document.getElementById("drawer").classList.contains("open") : force; document.getElementById("drawer").classList.toggle("open", open); document.getElementById("overlay").classList.toggle("open", open); }
+    function kirimManual() { const input = document.getElementById("manualId"), id = input.value.trim(); if (!id) { input.focus(); return; } isScanning = false; toggleMenu(false); prosesDataTiket(id); }
+    function prosesDataTiket(idTiket) {
+      tampilkanLoading();
+      fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "scan", idTiket }) })
+        .then(r => r.json()).then(data => tampilkanSheet(data.status, data.pesan)).catch(() => tampilkanSheet("gagal", "Koneksi terputus. Pastikan internet panitia stabil."));
+    }
+    function tampilkanLoading() { const s = document.getElementById("resultSheet"); s.className = "result show loading"; document.getElementById("sheetTitle").textContent = "Memproses tiket"; document.getElementById("sheetDesc").textContent = "Menghubungi server..."; document.getElementById("sheetIcon").innerHTML = '<i data-lucide="loader-2" class="spin"></i>'; lucide.createIcons(); clearTimeout(autoCloseTimer); }
+    function tampilkanSheet(status, pesan) {
+      const s = document.getElementById("resultSheet"), map = { sukses: ["success", "Tiket valid", "check"], peringatan: ["warning", "Sudah digunakan", "alert-circle"], gagal: ["error", "Tiket tidak valid", "x-circle"] }, item = map[status] || map.gagal;
+      s.className = "result show " + item[0]; document.getElementById("sheetTitle").textContent = item[1]; document.getElementById("sheetDesc").textContent = pesan || "Tidak ada detail tambahan."; document.getElementById("sheetIcon").innerHTML = `<i data-lucide="${item[2]}" width="21"></i>`; lucide.createIcons(); feedback(status);
+      clearTimeout(autoCloseTimer); autoCloseTimer = setTimeout(tutupSheet, 3000);
+    }
+    function tutupSheet() { clearTimeout(autoCloseTimer); document.getElementById("resultSheet").classList.remove("show"); document.getElementById("manualId").value = ""; setTimeout(() => isScanning = true, 450); }
+  </script>
+  <style>.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }</style>
+</body>
+</html><!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <title>GateScan — Scanner Tiket</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --navy: #07111f; --navy-2: #0d1b2e; --line: rgba(255,255,255,.12);
+      --muted: #9aabc0; --white: #f8fbff; --blue: #4f8cff;
+      --cyan: #58d5ff; --green: #28d17c; --red: #ff5570; --amber: #ffb84d;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { width: 100%; min-height: 100%; height: 100%; background: var(--navy); color: var(--white); font-family: "DM Sans", sans-serif; }
+    body { overflow: hidden; position: fixed; inset: 0; min-height: 100dvh; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    #reader { position: fixed; inset: 0; z-index: 0; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; background: #050b13; }
+    #reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; filter: saturate(.85) contrast(1.04); }
+    #reader canvas, #qr-shaded-region { display: none !important; }
+    .camera-wash { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(3,10,19,.84) 0%, rgba(3,10,19,.05) 36%, rgba(3,10,19,.1) 65%, rgba(3,10,19,.92) 100%); }
+    .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; padding: max(22px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) 18px max(22px, env(safe-area-inset-left)); }
+    .brand { display: flex; align-items: center; gap: 11px; }
+    .brand-mark { display: grid; place-items: center; width: 39px; height: 39px; border: 1px solid rgba(88,213,255,.45); border-radius: 12px; color: var(--cyan); background: rgba(7,17,31,.72); box-shadow: 0 0 24px rgba(79,140,255,.18); }
+    .brand-name { font-family: "Plus Jakarta Sans"; font-size: 16px; letter-spacing: -.4px; font-weight: 800; }
+    .brand-sub { color: var(--muted); font-size: 11px; margin-top: 1px; }
+    .online { display: flex; align-items: center; gap: 7px; color: #d8fceb; font-size: 12px; font-weight: 600; padding: 9px 12px; border: 1px solid rgba(40,209,124,.28); border-radius: 999px; background: rgba(7,17,31,.68); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(40,209,124,.14); }
+    .center { position: fixed; inset: 0; z-index: 3; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(70px, calc(env(safe-area-inset-top) + 45px)) 20px max(145px, calc(env(safe-area-inset-bottom) + 120px)); }
+    .scan-heading { text-align: center; margin-bottom: 28px; text-shadow: 0 2px 15px #000; }
+    .scan-heading h1 { font-family: "Plus Jakarta Sans"; font-size: clamp(22px, 5vw, 30px); letter-spacing: -.8px; }
+    .scan-heading p { margin-top: 8px; color: #d0dae6; font-size: 13px; }
+    .scan-box { position: relative; width: min(76vw, 290px); aspect-ratio: 1; border-radius: 24px; box-shadow: 0 0 0 999px rgba(2,8,15,.54), 0 0 45px rgba(88,213,255,.14); }
+    .scan-box::before { content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: linear-gradient(90deg, transparent, var(--cyan), transparent); box-shadow: 0 0 12px var(--cyan); animation: scan 2.4s ease-in-out infinite; }
+    .corner { position: absolute; width: 42px; height: 42px; border-color: var(--cyan); border-style: solid; filter: drop-shadow(0 0 6px rgba(88,213,255,.5)); }
+    .tl { top: 0; left: 0; border-width: 4px 0 0 4px; border-radius: 18px 0 0 0; }
+    .tr { top: 0; right: 0; border-width: 4px 4px 0 0; border-radius: 0 18px 0 0; }
+    .bl { bottom: 0; left: 0; border-width: 0 0 4px 4px; border-radius: 0 0 0 18px; }
+    .br { bottom: 0; right: 0; border-width: 0 4px 4px 0; border-radius: 0 0 18px 0; }
+    .scan-hint { margin-top: 28px; color: #e1e8f1; font-size: 13px; text-align: center; text-shadow: 0 2px 10px #000; }
+    .bottom-controls { position: fixed; z-index: 4; bottom: 0; left: 0; right: 0; padding: 20px max(22px, env(safe-area-inset-right)) max(24px, calc(env(safe-area-inset-bottom) + 10px)) max(22px, env(safe-area-inset-left)); background: linear-gradient(transparent, rgba(4,11,20,.95) 28%); }
+    .control-row { display: flex; justify-content: center; gap: 12px; }
+    .control { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; color: #e8f0f9; background: rgba(10,25,43,.88); border: 1px solid var(--line); border-radius: 13px; font-size: 13px; font-weight: 600; backdrop-filter: blur(14px); transition: .2s; }
+    .control:hover { border-color: rgba(88,213,255,.5); transform: translateY(-1px); }
+    .menu-btn { position: fixed; top: max(78px, calc(env(safe-area-inset-top) + 62px)); left: 22px; z-index: 5; display: grid; place-items: center; width: 42px; height: 42px; color: white; border: 1px solid var(--line); border-radius: 12px; background: rgba(7,17,31,.7); backdrop-filter: blur(12px); }
+    .drawer-overlay { position: fixed; inset: 0; z-index: 8; visibility: hidden; background: rgba(0,0,0,.45); opacity: 0; transition: .25s; }
+    .drawer-overlay.open { visibility: visible; opacity: 1; }
+    .drawer { position: fixed; top: 0; bottom: 0; left: 0; z-index: 9; width: min(86vw, 360px); padding: max(28px, env(safe-area-inset-top)) 24px 26px; background: var(--navy-2); border-right: 1px solid var(--line); transform: translateX(-105%); transition: transform .3s cubic-bezier(.2,.8,.2,1); box-shadow: 12px 0 40px rgba(0,0,0,.35); }
+    .drawer.open { transform: translateX(0); }
+    .drawer-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 34px; }
+    .drawer h2 { font-family: "Plus Jakarta Sans"; font-size: 18px; }
+    .icon-btn { display: grid; place-items: center; width: 38px; height: 38px; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; background: transparent; }
+    .section-label { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 1.5px; font-weight: 700; margin: 22px 0 10px; }
+    .manual-box { padding: 15px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 15px; }
+    .manual-box p { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 12px; }
+    .manual-box input { width: 100%; padding: 12px; color: white; outline: none; border: 1px solid #2a405a; border-radius: 10px; background: #091728; font-size: 13px; }
+    .manual-box input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(79,140,255,.13); }
+    .primary { width: 100%; margin-top: 10px; padding: 12px; color: white; border: 0; border-radius: 10px; background: linear-gradient(135deg, #4f8cff, #6b62f8); font-weight: 700; }
+    .drawer-action { display: flex; align-items: center; width: 100%; gap: 12px; padding: 13px 0; color: #e5edf6; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; font-weight: 600; font-size: 13px; }
+    .drawer-action svg { color: var(--cyan); }
+    .result { position: fixed; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); z-index: 7; display: flex; align-items: center; gap: 13px; width: min(calc(100% - 32px), 410px); padding: 15px; color: #102033; border-radius: 17px; background: #f8fbff; box-shadow: 0 15px 50px rgba(0,0,0,.45); transform: translate(-50%, calc(100% + 50px)); transition: .4s cubic-bezier(.2,.9,.25,1.2); }
+    .result.show { transform: translate(-50%, 0); }
+    .result.success { border-left: 5px solid var(--green); } .result.warning { border-left: 5px solid var(--amber); } .result.error { border-left: 5px solid var(--red); }
+    .result-icon { display: grid; place-items: center; flex: 0 0 43px; width: 43px; height: 43px; color: white; border-radius: 13px; background: var(--green); }
+    .warning .result-icon { background: var(--amber); } .error .result-icon { background: var(--red); } .loading .result-icon { background: var(--blue); }
+    .result h3 { font: 700 15px "Plus Jakarta Sans"; } .result p { margin-top: 3px; color: #536273; font-size: 12px; line-height: 1.4; }
+    .close-result { margin-left: auto; color: #8c9aab; border: 0; background: none; }
+    .hidden { display: none; }
+    .zoom-badge { display: flex; align-items: center; gap: 6px; position: fixed; right: max(22px, env(safe-area-inset-right)); top: max(78px, calc(env(safe-area-inset-top) + 62px)); z-index: 4; padding: 8px 11px; color: #d7f8ff; border: 1px solid rgba(88,213,255,.24); border-radius: 999px; background: rgba(7,17,31,.64); backdrop-filter: blur(12px); font-size: 11px; font-weight: 700; opacity: 0; transform: translateY(-5px); transition: .3s; }
+    .zoom-badge.active { opacity: 1; transform: translateY(0); }
+    .zoom-badge svg { color: var(--cyan); }
+    @keyframes scan { 0%,100% { transform: translateY(-125px); opacity: .4; } 50% { transform: translateY(125px); opacity: 1; } }
+    @media (min-width: 600px) { .bottom-controls { left: 50%; right: auto; width: 500px; transform: translateX(-50%); } }
+  </style>
+</head>
+<body>
+  <div id="reader"></div><div class="camera-wash"></div>
+  <header class="topbar">
+    <div class="brand"><div class="brand-mark"><i data-lucide="scan-line" width="21"></i></div><div><div class="brand-name">GateScan</div><div class="brand-sub">Scanner tiket acara</div></div></div>
+    <div class="online"><span class="dot"></span> Sistem aktif</div>
+  </header>
+  <button class="menu-btn" aria-label="Buka menu" onclick="toggleMenu()"><i data-lucide="menu" width="20"></i></button>
+  <div id="zoomBadge" class="zoom-badge"><i data-lucide="scan-focus" width="14"></i><span>Auto zoom aktif</span></div>
+  <main class="center">
+    <div class="scan-heading"><h1>Scan tiket masuk</h1><p>Verifikasi tiket dengan cepat dan aman</p></div>
+    <div class="scan-box" aria-label="Area pemindaian QR"><span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span></div>
+    <p class="scan-hint">Posisikan QR code di dalam kotak</p>
+  </main>
+  <div class="bottom-controls"><div class="control-row">
+    <button class="control" onclick="toggleMenu()"><i data-lucide="keyboard" width="17"></i> Input manual</button>
+    <button class="control" onclick="gantiKamera()"><i data-lucide="switch-camera" width="17"></i> Ganti kamera</button>
+  </div></div>
+  <div id="overlay" class="drawer-overlay" onclick="toggleMenu()"></div>
+  <aside id="drawer" class="drawer">
+    <div class="drawer-head"><div><div class="brand-sub">PANEL PANITIA</div><h2>Kontrol scanner</h2></div><button class="icon-btn" onclick="toggleMenu()" aria-label="Tutup"><i data-lucide="x" width="18"></i></button></div>
+    <div class="section-label">Verifikasi alternatif</div>
+    <div class="manual-box"><p>Gunakan input manual jika QR code sulit dipindai atau kamera bermasalah.</p><input id="manualId" type="text" placeholder="Contoh: TIKET-X-XXXX" autocomplete="off"><button class="primary" onclick="kirimManual()"><i data-lucide="check-circle-2" width="16" style="vertical-align:-3px"></i> Proses tiket</button></div>
+    <div class="section-label">Perangkat</div>
+    <button class="drawer-action" onclick="gantiKamera()"><i data-lucide="switch-camera" width="18"></i> Ganti kamera perangkat</button>
+    <button class="drawer-action" onclick="toggleMenu()"><i data-lucide="scan-line" width="18"></i> Kembali ke pemindaian</button>
+  </aside>
+  <section id="resultSheet" class="result" role="status">
+    <div id="sheetIcon" class="result-icon"></div><div><h3 id="sheetTitle">Memproses tiket</h3><p id="sheetDesc">Menghubungi server...</p></div>
+    <button class="close-result" onclick="tutupSheet()" aria-label="Tutup hasil"><i data-lucide="x" width="18"></i></button>
+  </section>
+  <script>
+    lucide.createIcons();
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAvT3N-lnddFImO2kD5mLLP0zXXX0FI7AtZrV7zk1tboLSC6Cv2K-wA617uxd3MRqJ/exec";
+    let html5QrCode, isScanning = true, isFrontCamera = false, autoCloseTimer, audioCtx;
+    function initAudio() { if (!audioCtx) { const C = window.AudioContext || window.webkitAudioContext; if (C) audioCtx = new C(); } if (audioCtx?.state === "suspended") audioCtx.resume(); }
+    document.body.addEventListener("touchstart", initAudio, { once: true }); document.body.addEventListener("click", initAudio, { once: true });
+    function feedback(status) {
+      navigator.vibrate?.(status === "sukses" ? 100 : [220, 120, 220]);
+      try { initAudio(); if (!audioCtx) return; const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = status === "sukses" ? "sine" : "square"; o.frequency.value = status === "sukses" ? 880 : 180; g.gain.setValueAtTime(.25, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.01, audioCtx.currentTime + .28); o.start(); o.stop(audioCtx.currentTime + .3); } catch(e) {}
+    }
+    window.addEventListener("load", () => { html5QrCode = new Html5Qrcode("reader"); startCamera(); });
+    function startCamera() {
+      html5QrCode.start({ facingMode: isFrontCamera ? "user" : "environment" }, { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.777 }, text => { if (isScanning) { isScanning = false; prosesDataTiket(text); } }).then(aktifkanAutoZoom).catch(() => tampilkanSheet("gagal", "Kamera tidak dapat diakses. Periksa izin kamera browser."));
+    }
+    function aktifkanAutoZoom() {
+      const video = document.querySelector("#reader video"), track = video?.srcObject?.getVideoTracks?.()[0];
+      if (!track || isFrontCamera) return;
+      const capability = track.getCapabilities?.(), zoom = capability?.zoom;
+      if (!zoom) return;
+      const target = Math.min(zoom.max, Math.max(zoom.min, zoom.min + (zoom.max - zoom.min) * .22));
+      track.applyConstraints({ advanced: [{ zoom: target }] }).then(() => {
+        const badge = document.getElementById("zoomBadge");
+        badge.querySelector("span").textContent = `Auto zoom ${target.toFixed(1)}×`;
+        badge.classList.add("active");
+      }).catch(() => {});
+    }
+    function gantiKamera() { isFrontCamera = !isFrontCamera; document.getElementById("zoomBadge").classList.remove("active"); html5QrCode.stop().then(startCamera).catch(startCamera); toggleMenu(false); }
+    function toggleMenu(force) { const open = force === undefined ? !document.getElementById("drawer").classList.contains("open") : force; document.getElementById("drawer").classList.toggle("open", open); document.getElementById("overlay").classList.toggle("open", open); }
+    function kirimManual() { const input = document.getElementById("manualId"), id = input.value.trim(); if (!id) { input.focus(); return; } isScanning = false; toggleMenu(false); prosesDataTiket(id); }
+    function prosesDataTiket(idTiket) {
+      tampilkanLoading();
+      fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "scan", idTiket }) })
+        .then(r => r.json()).then(data => tampilkanSheet(data.status, data.pesan)).catch(() => tampilkanSheet("gagal", "Koneksi terputus. Pastikan internet panitia stabil."));
+    }
+    function tampilkanLoading() { const s = document.getElementById("resultSheet"); s.className = "result show loading"; document.getElementById("sheetTitle").textContent = "Memproses tiket"; document.getElementById("sheetDesc").textContent = "Menghubungi server..."; document.getElementById("sheetIcon").innerHTML = '<i data-lucide="loader-2" class="spin"></i>'; lucide.createIcons(); clearTimeout(autoCloseTimer); }
+    function tampilkanSheet(status, pesan) {
+      const s = document.getElementById("resultSheet"), map = { sukses: ["success", "Tiket valid", "check"], peringatan: ["warning", "Sudah digunakan", "alert-circle"], gagal: ["error", "Tiket tidak valid", "x-circle"] }, item = map[status] || map.gagal;
+      s.className = "result show " + item[0]; document.getElementById("sheetTitle").textContent = item[1]; document.getElementById("sheetDesc").textContent = pesan || "Tidak ada detail tambahan."; document.getElementById("sheetIcon").innerHTML = `<i data-lucide="${item[2]}" width="21"></i>`; lucide.createIcons(); feedback(status);
+      clearTimeout(autoCloseTimer); autoCloseTimer = setTimeout(tutupSheet, 3000);
+    }
+    function tutupSheet() { clearTimeout(autoCloseTimer); document.getElementById("resultSheet").classList.remove("show"); document.getElementById("manualId").value = ""; setTimeout(() => isScanning = true, 450); }
+  </script>
+  <style>.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }</style>
 </body>
 </html>
