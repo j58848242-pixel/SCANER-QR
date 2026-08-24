@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#07111f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GateScan">
   <title>GateScan — Scanner Tiket</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,25 +15,30 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     :root {
-      --navy: #07111f; --navy-2: #0d1b2e; --line: rgba(255,255,255,.12);
-      --muted: #9aabc0; --white: #f8fbff; --blue: #4f8cff;
+      --navy: #07111f; --navy-2: #0d1b2e; --line: rgba(255,255,255,.17);
+      --muted: #a9b8c9; --white: #f8fbff; --blue: #4f8cff;
       --cyan: #58d5ff; --green: #28d17c; --red: #ff5570; --amber: #ffb84d;
     }
     * { box-sizing: border-box; margin: 0; }
-    html, body { width: 100%; min-height: 100%; height: 100%; background: var(--navy); color: var(--white); font-family: "DM Sans", sans-serif; }
+    html, body { width: 100%; min-height: 100%; height: 100%; background: radial-gradient(circle at 70% 15%, #173c62 0, transparent 35%), var(--navy); color: var(--white); font-family: "DM Sans", sans-serif; }
     body { overflow: hidden; position: fixed; inset: 0; min-height: 100dvh; }
+    body, body * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    input, input::placeholder { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+    body::before, body::after { content: ""; position: fixed; z-index: 2; pointer-events: none; width: 190px; height: 190px; border-radius: 50%; filter: blur(28px); opacity: .48; mix-blend-mode: screen; }
+    body::before { left: -85px; top: 29%; background: radial-gradient(circle at 65% 35%, rgba(99,207,255,.85), rgba(50,101,255,.12) 58%, transparent 72%); animation: float-left 10s ease-in-out infinite; }
+    body::after { right: -85px; bottom: 18%; background: radial-gradient(circle at 35% 40%, rgba(163,116,255,.7), rgba(50,101,255,.1) 58%, transparent 72%); animation: float-right 12s ease-in-out infinite; }
     button, input { font: inherit; }
     button { cursor: pointer; }
-    #reader { position: fixed; inset: 0; z-index: 0; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; background: #050b13; }
+    #reader { position: fixed; inset: 0; z-index: 0; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; background: #050505; }
     #reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; filter: saturate(.85) contrast(1.04); }
     #reader canvas, #qr-shaded-region { display: none !important; }
     .camera-wash { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(3,10,19,.84) 0%, rgba(3,10,19,.05) 36%, rgba(3,10,19,.1) 65%, rgba(3,10,19,.92) 100%); }
-    .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; padding: max(22px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) 18px max(22px, env(safe-area-inset-left)); }
+    .topbar { position: fixed; top: max(10px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); z-index: 4; display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; border: 1px solid rgba(255,255,255,.2); border-radius: 28px; background: linear-gradient(135deg, rgba(255,255,255,.2), rgba(255,255,255,.055)); box-shadow: inset 0 1px rgba(255,255,255,.3), 0 12px 30px rgba(0,0,0,.18); backdrop-filter: blur(24px) saturate(145%); -webkit-backdrop-filter: blur(24px) saturate(145%); }
     .brand { display: flex; align-items: center; gap: 11px; }
-    .brand-mark { display: grid; place-items: center; width: 39px; height: 39px; border: 1px solid rgba(88,213,255,.45); border-radius: 12px; color: var(--cyan); background: rgba(7,17,31,.72); box-shadow: 0 0 24px rgba(79,140,255,.18); }
+    .brand-mark { display: grid; place-items: center; width: 39px; height: 39px; border: 1px solid rgba(255,255,255,.3); border-radius: 13px; color: var(--cyan); background: linear-gradient(145deg, rgba(255,255,255,.3), rgba(255,255,255,.08)); box-shadow: inset 0 1px rgba(255,255,255,.35), 0 0 24px rgba(79,140,255,.2); backdrop-filter: blur(14px); }
     .brand-name { font-family: "Plus Jakarta Sans"; font-size: 16px; letter-spacing: -.4px; font-weight: 800; }
     .brand-sub { color: var(--muted); font-size: 11px; margin-top: 1px; }
-    .online { display: flex; align-items: center; gap: 7px; color: #d8fceb; font-size: 12px; font-weight: 600; padding: 9px 12px; border: 1px solid rgba(40,209,124,.28); border-radius: 999px; background: rgba(7,17,31,.68); }
+    .online { display: flex; align-items: center; gap: 7px; color: #e5f7ff; font-size: 12px; font-weight: 600; padding: 9px 12px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; background: rgba(255,255,255,.1); box-shadow: inset 0 1px rgba(255,255,255,.18); backdrop-filter: blur(14px); }
     .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(40,209,124,.14); }
     .center { position: fixed; inset: 0; z-index: 3; width: 100vw; height: 100dvh; min-height: -webkit-fill-available; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(70px, calc(env(safe-area-inset-top) + 45px)) 20px max(145px, calc(env(safe-area-inset-bottom) + 120px)); }
     .scan-heading { text-align: center; margin-bottom: 28px; text-shadow: 0 2px 15px #000; }
@@ -46,30 +54,30 @@
     .scan-hint { margin-top: 28px; color: #e1e8f1; font-size: 13px; text-align: center; text-shadow: 0 2px 10px #000; }
     .bottom-controls { position: fixed; z-index: 4; bottom: 0; left: 0; right: 0; padding: 20px max(22px, env(safe-area-inset-right)) max(24px, calc(env(safe-area-inset-bottom) + 10px)) max(22px, env(safe-area-inset-left)); background: linear-gradient(transparent, rgba(4,11,20,.95) 28%); }
     .control-row { display: flex; justify-content: center; gap: 12px; }
-    .control { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; color: #e8f0f9; background: rgba(10,25,43,.88); border: 1px solid var(--line); border-radius: 13px; font-size: 13px; font-weight: 600; backdrop-filter: blur(14px); transition: .2s; }
+    .control { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; color: #e8f0f9; background: linear-gradient(145deg, rgba(255,255,255,.2), rgba(255,255,255,.07)); border: 1px solid rgba(255,255,255,.22); border-radius: 999px; font-size: 13px; font-weight: 600; box-shadow: inset 0 1px rgba(255,255,255,.22), 0 8px 25px rgba(0,0,0,.18); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%); transition: .2s; }
     .control:hover { border-color: rgba(88,213,255,.5); transform: translateY(-1px); }
-    .menu-btn { position: fixed; top: max(78px, calc(env(safe-area-inset-top) + 62px)); left: 22px; z-index: 5; display: grid; place-items: center; width: 42px; height: 42px; color: white; border: 1px solid var(--line); border-radius: 12px; background: rgba(7,17,31,.7); backdrop-filter: blur(12px); }
+    .menu-btn { position: fixed; top: max(78px, calc(env(safe-area-inset-top) + 62px)); left: max(18px, env(safe-area-inset-left)); z-index: 5; display: grid; place-items: center; width: 44px; height: 44px; color: white; border: 1px solid rgba(255,255,255,.24); border-radius: 50%; background: linear-gradient(145deg, rgba(255,255,255,.2), rgba(255,255,255,.07)); box-shadow: inset 0 1px rgba(255,255,255,.25), 0 7px 20px rgba(0,0,0,.2); backdrop-filter: blur(18px); }
     .drawer-overlay { position: fixed; inset: 0; z-index: 8; visibility: hidden; background: rgba(0,0,0,.45); opacity: 0; transition: .25s; }
     .drawer-overlay.open { visibility: visible; opacity: 1; }
-    .drawer { position: fixed; top: 0; bottom: 0; left: 0; z-index: 9; width: min(86vw, 360px); padding: max(28px, env(safe-area-inset-top)) 24px 26px; background: var(--navy-2); border-right: 1px solid var(--line); transform: translateX(-105%); transition: transform .3s cubic-bezier(.2,.8,.2,1); box-shadow: 12px 0 40px rgba(0,0,0,.35); }
+    .drawer { position: fixed; top: 10px; bottom: 10px; left: 10px; z-index: 9; width: min(calc(86vw - 10px), 360px); padding: max(28px, env(safe-area-inset-top)) 24px 26px; background: linear-gradient(145deg, rgba(27,58,91,.88), rgba(8,19,34,.91)); border: 1px solid rgba(255,255,255,.2); border-radius: 30px; transform: translateX(-115%); transition: transform .3s cubic-bezier(.2,.8,.2,1); box-shadow: 12px 0 40px rgba(0,0,0,.35), inset 0 1px rgba(255,255,255,.2); backdrop-filter: blur(28px) saturate(150%); }
     .drawer.open { transform: translateX(0); }
     .drawer-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 34px; }
     .drawer h2 { font-family: "Plus Jakarta Sans"; font-size: 18px; }
-    .icon-btn { display: grid; place-items: center; width: 38px; height: 38px; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; background: transparent; }
+    .icon-btn { display: grid; place-items: center; width: 38px; height: 38px; color: var(--muted); border: 1px solid rgba(255,255,255,.2); border-radius: 12px; background: rgba(255,255,255,.1); backdrop-filter: blur(14px); }
     .section-label { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 1.5px; font-weight: 700; margin: 22px 0 10px; }
-    .manual-box { padding: 15px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 15px; }
+    .manual-box { padding: 15px; background: linear-gradient(145deg, rgba(255,255,255,.15), rgba(255,255,255,.045)); border: 1px solid rgba(255,255,255,.18); border-radius: 17px; box-shadow: inset 0 1px rgba(255,255,255,.14); backdrop-filter: blur(16px); }
     .manual-box p { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 12px; }
     .manual-box input { width: 100%; padding: 12px; color: white; outline: none; border: 1px solid #2a405a; border-radius: 10px; background: #091728; font-size: 13px; }
     .manual-box input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(79,140,255,.13); }
     .primary { width: 100%; margin-top: 10px; padding: 12px; color: white; border: 0; border-radius: 10px; background: linear-gradient(135deg, #4f8cff, #6b62f8); font-weight: 700; }
     .drawer-action { display: flex; align-items: center; width: 100%; gap: 12px; padding: 13px 0; color: #e5edf6; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; font-weight: 600; font-size: 13px; }
     .drawer-action svg { color: var(--cyan); }
-    .result { position: fixed; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); z-index: 7; display: flex; align-items: center; gap: 13px; width: min(calc(100% - 32px), 410px); padding: 15px; color: #102033; border-radius: 17px; background: #f8fbff; box-shadow: 0 15px 50px rgba(0,0,0,.45); transform: translate(-50%, calc(100% + 50px)); transition: .4s cubic-bezier(.2,.9,.25,1.2); }
+    .result { position: fixed; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); z-index: 7; display: flex; align-items: center; gap: 13px; width: min(calc(100% - 32px), 410px); padding: 15px; color: #f8fbff; border: 1px solid rgba(255,255,255,.22); border-radius: 24px; background: linear-gradient(135deg, rgba(30,54,80,.88), rgba(9,22,38,.84)); box-shadow: inset 0 1px rgba(255,255,255,.25), 0 15px 50px rgba(0,0,0,.45); backdrop-filter: blur(25px) saturate(155%); -webkit-backdrop-filter: blur(25px) saturate(155%); transform: translate(-50%, calc(100% + 50px)); transition: .4s cubic-bezier(.2,.9,.25,1.2); }
     .result.show { transform: translate(-50%, 0); }
     .result.success { border-left: 5px solid var(--green); } .result.warning { border-left: 5px solid var(--amber); } .result.error { border-left: 5px solid var(--red); }
     .result-icon { display: grid; place-items: center; flex: 0 0 43px; width: 43px; height: 43px; color: white; border-radius: 13px; background: var(--green); }
     .warning .result-icon { background: var(--amber); } .error .result-icon { background: var(--red); } .loading .result-icon { background: var(--blue); }
-    .result h3 { font: 700 15px "Plus Jakarta Sans"; } .result p { margin-top: 3px; color: #536273; font-size: 12px; line-height: 1.4; }
+    .result h3 { font: 700 15px "Plus Jakarta Sans"; } .result p { margin-top: 3px; color: #cbd9e8; font-size: 12px; line-height: 1.4; }
     .close-result { margin-left: auto; color: #8c9aab; border: 0; background: none; }
     .hidden { display: none; }
     .zoom-badge { display: flex; align-items: center; gap: 6px; position: fixed; right: max(22px, env(safe-area-inset-right)); top: max(78px, calc(env(safe-area-inset-top) + 62px)); z-index: 4; padding: 8px 11px; color: #d7f8ff; border: 1px solid rgba(88,213,255,.24); border-radius: 999px; background: rgba(7,17,31,.64); backdrop-filter: blur(12px); font-size: 11px; font-weight: 700; opacity: 0; transform: translateY(-5px); transition: .3s; }
@@ -80,6 +88,8 @@
     .camera-error strong { display: block; margin-bottom: 6px; font: 700 15px "Plus Jakarta Sans"; }
     .camera-error p { color: var(--muted); font-size: 12px; line-height: 1.5; }
     @keyframes scan { 0%,100% { transform: translateY(-125px); opacity: .4; } 50% { transform: translateY(125px); opacity: 1; } }
+    @keyframes float-left { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(42px,-28px,0) scale(1.18); } }
+    @keyframes float-right { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(-35px,24px,0) scale(.86); } }
     @media (min-width: 600px) { .bottom-controls { left: 50%; right: auto; width: 500px; transform: translateX(-50%); } }
   </style>
 </head>
@@ -117,30 +127,70 @@
   <script>
     lucide.createIcons();
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAvT3N-lnddFImO2kD5mLLP0zXXX0FI7AtZrV7zk1tboLSC6Cv2K-wA617uxd3MRqJ/exec";
-    let html5QrCode, isScanning = true, isFrontCamera = false, autoCloseTimer, audioCtx, activeTrack, torchOn = false;
+    let html5QrCode, isScanning = true, isFrontCamera = false, autoCloseTimer, audioCtx, activeTrack, torchOn = false, autoZoomTimer, detectorTimer, currentZoom = 1;
     function initAudio() { if (!audioCtx) { const C = window.AudioContext || window.webkitAudioContext; if (C) audioCtx = new C(); } if (audioCtx?.state === "suspended") audioCtx.resume(); }
     document.body.addEventListener("touchstart", initAudio, { once: true }); document.body.addEventListener("click", initAudio, { once: true });
     function feedback(status) {
-      navigator.vibrate?.(status === "sukses" ? 100 : [220, 120, 220]);
+      const berhasil = status === "sukses";
+      // Safari iPhone mendukung getaran hanya pada sebagian browser/perangkat;
+      // pada perangkat yang mendukung, kegagalan diberi pola lebih tegas.
+      if (navigator.vibrate) navigator.vibrate(berhasil ? 100 : [300, 130, 300, 130, 300]);
       try { initAudio(); if (!audioCtx) return; const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = status === "sukses" ? "sine" : "square"; o.frequency.value = status === "sukses" ? 880 : 180; g.gain.setValueAtTime(.25, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.01, audioCtx.currentTime + .28); o.start(); o.stop(audioCtx.currentTime + .3); } catch(e) {}
     }
     window.addEventListener("load", () => { html5QrCode = new Html5Qrcode("reader"); startCamera(); });
     function startCamera() {
-      html5QrCode.start({ facingMode: isFrontCamera ? "user" : "environment" }, { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.777 }, text => { if (isScanning) { isScanning = false; prosesDataTiket(text); } }).then(() => { activeTrack = document.querySelector("#reader video")?.srcObject?.getVideoTracks?.()[0]; aktifkanAutoZoom(); }).catch(() => {
+      html5QrCode.start({ facingMode: isFrontCamera ? "user" : "environment" }, { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.777 }, text => { if (isScanning) { isScanning = false; hentikanAutoZoom(); prosesDataTiket(text); } }).then(() => { activeTrack = document.querySelector("#reader video")?.srcObject?.getVideoTracks?.()[0]; mulaiAutoZoom(); }).catch(() => {
         document.getElementById("reader").innerHTML = '<div class="camera-error"><strong>Kamera belum tersedia</strong><p>Izinkan akses kamera di Safari, lalu muat ulang halaman untuk mulai memindai.</p></div>';
       });
     }
-    function aktifkanAutoZoom() {
-      const video = document.querySelector("#reader video"), track = video?.srcObject?.getVideoTracks?.()[0];
-      if (!track || isFrontCamera) return;
-      const capability = track.getCapabilities?.(), zoom = capability?.zoom;
-      if (!zoom) return;
-      const target = Math.min(zoom.max, Math.max(zoom.min, zoom.min + (zoom.max - zoom.min) * .22));
-      track.applyConstraints({ advanced: [{ zoom: target }] }).then(() => {
-        const badge = document.getElementById("zoomBadge");
-        badge.querySelector("span").textContent = `Auto zoom ${target.toFixed(1)}×`;
-        badge.classList.add("active");
-      }).catch(() => {});
+    function mulaiAutoZoom() {
+      if (!activeTrack || isFrontCamera) return;
+      const range = activeTrack.getCapabilities?.().zoom;
+      if (!range) return;
+      const video = document.querySelector("#reader video"), badge = document.getElementById("zoomBadge");
+      const min = range.min || 1, max = range.max || 1;
+      const setZoom = value => {
+        if (!isScanning || !activeTrack) return;
+        currentZoom = Math.max(min, Math.min(max, value));
+        activeTrack.applyConstraints({ advanced: [{ zoom: currentZoom }] }).then(() => {
+          badge.querySelector("span").textContent = `Auto zoom ${currentZoom.toFixed(1)}×`;
+          badge.classList.add("active");
+        }).catch(() => {});
+      };
+      const sweep = () => {
+        if (autoZoomTimer || max <= min) return;
+        let direction = 1;
+        autoZoomTimer = setInterval(() => {
+          if (currentZoom >= max) direction = -1;
+          if (currentZoom <= min) direction = 1;
+          setZoom(currentZoom + Math.max((max - min) / 8, .15) * direction);
+        }, 1800);
+      };
+      // Browser yang mendukung BarcodeDetector akan menyesuaikan zoom berdasarkan ukuran QR.
+      if ("BarcodeDetector" in window) {
+        try {
+          const detector = new BarcodeDetector({ formats: ["qr_code"] });
+          detectorTimer = setInterval(async () => {
+            if (!isScanning || !video?.videoWidth) return;
+            try {
+              const codes = await detector.detect(video);
+              if (codes[0]?.boundingBox) {
+                clearInterval(autoZoomTimer); autoZoomTimer = null;
+                const box = codes[0].boundingBox;
+                const size = Math.max(box.width / video.videoWidth, box.height / video.videoHeight);
+                setZoom(currentZoom * (.34 / Math.max(size, .08)));
+              } else sweep();
+            } catch (e) {}
+          }, 350);
+          return;
+        } catch (e) {}
+      }
+      // Fallback untuk Safari/browser yang belum memiliki BarcodeDetector.
+      sweep();
+    }
+    function hentikanAutoZoom() {
+      clearInterval(autoZoomTimer); clearInterval(detectorTimer);
+      autoZoomTimer = null; detectorTimer = null;
     }
     function toggleTorch() {
       if (!activeTrack || isFrontCamera || !activeTrack.getCapabilities?.().torch) { tampilkanSheet("peringatan", "Senter tidak didukung oleh kamera ini."); return; }
@@ -153,7 +203,7 @@
         lucide.createIcons();
       }).catch(() => tampilkanSheet("gagal", "Senter tidak dapat diaktifkan pada perangkat ini."));
     }
-    function gantiKamera() { isFrontCamera = !isFrontCamera; torchOn = false; activeTrack = null; document.getElementById("torchButton").classList.remove("torch-on"); document.getElementById("zoomBadge").classList.remove("active"); html5QrCode.stop().then(startCamera).catch(startCamera); toggleMenu(false); }
+    function gantiKamera() { hentikanAutoZoom(); isFrontCamera = !isFrontCamera; torchOn = false; activeTrack = null; currentZoom = 1; document.getElementById("torchButton").classList.remove("torch-on"); document.getElementById("zoomBadge").classList.remove("active"); html5QrCode.stop().then(startCamera).catch(startCamera); toggleMenu(false); }
     function toggleMenu(force) { const open = force === undefined ? !document.getElementById("drawer").classList.contains("open") : force; document.getElementById("drawer").classList.toggle("open", open); document.getElementById("overlay").classList.toggle("open", open); }
     function kirimManual() { const input = document.getElementById("manualId"), id = input.value.trim(); if (!id) { input.focus(); return; } isScanning = false; toggleMenu(false); prosesDataTiket(id); }
     function prosesDataTiket(idTiket) {
@@ -167,6 +217,9 @@
       s.className = "result show " + item[0]; document.getElementById("sheetTitle").textContent = item[1]; document.getElementById("sheetDesc").textContent = pesan || "Tidak ada detail tambahan."; document.getElementById("sheetIcon").innerHTML = `<i data-lucide="${item[2]}" width="21"></i>`; lucide.createIcons(); feedback(status);
       clearTimeout(autoCloseTimer); autoCloseTimer = setTimeout(tutupSheet, 3000);
     }
+    document.addEventListener("copy", event => { if (event.target.tagName !== "INPUT") event.preventDefault(); });
+    document.addEventListener("cut", event => { if (event.target.tagName !== "INPUT") event.preventDefault(); });
+    document.addEventListener("contextmenu", event => { if (event.target.tagName !== "INPUT") event.preventDefault(); });
     function tutupSheet() { clearTimeout(autoCloseTimer); document.getElementById("resultSheet").classList.remove("show"); document.getElementById("manualId").value = ""; setTimeout(() => isScanning = true, 450); }
   </script>
   <style>.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }</style>
